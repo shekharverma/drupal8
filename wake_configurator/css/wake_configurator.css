@@ -1,0 +1,318 @@
+
+/** Shekhar: CSS for the product page cart form **/
+.path-product .field-body,
+.path-product .field-variations .field-item{
+	column-width: auto;
+}
+/** END Shekhar: CSS for the product page cart form **/
+
+/** Shekhar: CSS for the checkout page **/
+.path-checkout form.commerce-checkout-flow-multistep-default #edit-payment-information .form-item-payment-information-payment-method label {
+  display: inline-block;
+  position: relative;
+  top: -4px;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default {
+  max-width: 100%;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default .layout-region-checkout-main {
+  width: 50%;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default .layout-region-checkout-secondary{
+	width: 50%;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default .layout-region-checkout-footer{
+	width: 50%;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default #edit-payment-information{
+	margin-top: 0
+}
+.path-checkout form.commerce-checkout-flow-multistep-default #edit-payment-information-payment-method--wrapper{
+	margin-top: 2px;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default legend{
+	display: none;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default legend .fieldset-legend {
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 500;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default #edit-payment-information-payment-method--wrapper legend{
+	display: block;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default #edit-sidebar-order-summary tr td + td + td {
+  text-align: right;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default .checkout-complete{
+	font: 14px Arial,Helvetica,sans-serif;
+}
+.path-checkout form.commerce-checkout-flow-multistep-default .checkout-complete .checkout-complete__payment-instructions h2 {
+  font: 14px Arial,Helvetica,sans-serif;
+  margin-bottom: 0;
+  margin-top: 15px;
+}
+
+/** END Shekhar: CSS for the checkout page **/
+
+/** Shekhar: CSS for the coticonfig => inline of the preview page **/
+form.webform-submission-config-coti-add-form{
+	max-width: 100% !important;
+}
+.webform-submission-config-coti-add-form .config-coti-order-total.form-item-order-total{
+	display: none; 
+}
+.webform-submission-config-coti-add-form .webform-preview .form-item.form-item-order-total {
+  font-size: 15px;
+  margin-bottom: 0;
+  margin-top: 30px;
+  width: 100%;
+}
+.webform-submission-config-coti-add-form .webform-preview .webform-element.form-item {
+  display: inline-block;
+  width: 48%;
+  margin-top: 0;
+}
+.webform-submission-config-coti-add-form .webform-preview .webform-element.form-item label {
+  display: inline-block;
+  width: 20%;
+}
+.webform-submission-config-coti-add-form .webform-preview summary {
+  margin: 25px 0;
+}
+.webform-submission-config-coti-add-form .webform-preview summary a {
+  font-size: 16px;
+}
+/** END Shekhar: CSS for the coticonfig => inline of the preview page **/
+
+/** Shekhar: CSS for the coticonfig => text alignement for the cart**/
+.path-cart .cart.cart-form form{
+	max-width: 100%;
+}
+.path-cart.single-page .messages.messages--status{
+	display: none;
+}
+.path-cart .cart.cart-form form .field-item {
+  column-width: auto;
+}
+.path-cart .cart.cart-form .field-total-price .order-total-line-label{
+	margin-right: 20px;
+}
+.cart.cart-form .views-field-purchased-entity {
+  text-align: left;
+}
+.cart.cart-form .views-field-field-commerce-enduser{
+	text-align: center;
+}
+.cart.cart-form .views-field-total-price__number {
+  text-align: right;
+}
+.cart.cart-form td.views-field-purchased-entity .field-label {
+  font-weight: normal;
+}
+/** END Shekhar: CSS for the coticonfig => text alignement for the cart**/
+
+/** Shekhar: CSS for the campconfig => check the weeks **/
+form.webform-submission-config-camp-form{
+	max-width: 100% !important;
+}
+.webform-submission-config-camp-form #edit-listing .select2-container .select2-selection__arrow {
+  display: none;
+}
+.path-webform .select2-container.select2-container--default.select2-container--open{
+	display: none;
+}
+.path-webform .webform-submission-config-camp-form #edit-listing .select2-container.select2-container--default.select2-container--open{
+	display: block;
+}
+#cboxOverlay{
+	opacity: 0.6 !important;
+}
+/** END Shekhar: CSS for the campconfig => check the weeks**/
+
+/** Shekhar: CSS for the campconfig => inline of the preview page **/
+.webform-submission-config-camp-form .config-camp-order-total.form-item-camp-order-total,
+.webform-submission-config-camp-form .config-camp-order-discount-total.form-item-camp-discount-total{
+	display: none; 
+}
+
+.webform-submission-config-camp-form .webform-preview .form-item.form-item-camp-order-total {
+  font-size: 15px;
+  margin-bottom: 0;
+  margin-top: 30px;
+  width: 100%;
+}
+.webform-submission-config-camp-form .webform-preview .form-item.form-item-camp-discount-total {
+  font-size: 15px;
+  margin-bottom: 0;
+  margin-top: 15px;
+  width: 100%;
+}
+/*.webform-submission-config-camp-form .webform-preview .webform-element.form-item {
+  display: inline-block;
+  width: 37%;
+  margin-top: 0;
+}*/
+.webform-submission-config-camp-form .webform-preview summary {
+  margin: 10px 0;
+}
+.webform-submission-config-camp-form .webform-preview summary a {
+  font-size: 16px;
+}
+.webform-submission-config-camp-form .webform-preview .webform-element label{
+	width: 45%;
+	display: inline-block;
+}
+/** END Shekhar: CSS for the campconfig => inline of the preview page **/
+
+/** Shekhar: CSS for the campconfig popup **/
+.camp-popup-overlay {
+    position: fixed; 
+    display: none; 
+    width: 100%; 
+    height: 100%; 
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 9999; 
+    cursor: pointer; 
+}
+.camp-popup {
+  background: #fff none repeat scroll 0 0;
+  border-radius: 7px;
+  left: 50%;
+  margin: 7% auto 0 -125px;
+  padding: 6px;
+  position: absolute;
+  text-align: center;
+  top: 50%;
+  width: 250px;
+  z-index: 99999;
+}
+.camp-popup li{
+  display: inline-block;
+  width: 100%;
+}
+.camp-popup li:first-child{
+  font-weight: bold;
+}
+.close-camp-popup{
+  position: relative;
+}
+.close-camp-popup a {
+  background: rgb(234,123,0);
+  border-radius: 50%;
+  color: #fff;
+  font-weight: bold;
+  height: 20px;
+  line-height: 19px;
+  position: absolute;
+  right: -14px;
+  text-align: center;
+  top: -15px;
+  width: 20px;
+}
+.close-camp-popup a:hover{
+  color: #fff;
+}
+/** END Shekhar: CSS for the campconfig popup **/
+
+
+/** Shekhar: CSS for the search rider **/
+#node-search-user-form .field--name-title{
+  display: none;
+}
+#node-search-user-form  .js-form-type-vertical-tabs{
+  display: none;
+}
+/** END Shekhar: CSS for the search rider **/
+
+/** Shekhar: CSS for the add wakepoints **/
+.container #wakepoints-wakepoint-form {
+  max-width: 100%;
+}
+#wakepoints-wakepoint-form .js-form-wrapper.form-wrapper {
+  display: inline-block;
+  width: 49%;
+}
+#wakepoints-wakepoint-form .js-form-wrapper.form-wrapper select {
+  width: 70%;
+}
+#wakepoints-wakepoint-form .js-form-wrapper.form-wrapper input {
+  width: 70%;
+}
+#wakepoints-wakepoint-form .js-form-wrapper.form-wrapper fieldset {
+  width: 70%;
+}
+#wakepoints-wakepoint-form .js-form-wrapper.form-wrapper fieldset legend {
+  border: medium none;
+  font-weight: 700;
+  margin-bottom: 0;
+}
+#wakepoints-wakepoint-form .js-form-wrapper.form-wrapper fieldset .js-form-item.form-item {
+  display: inline-block;
+  width: 49%;
+}
+#wakepoints-wakepoint-form .js-form-wrapper.form-wrapper fieldset .js-form-item.form-item input{
+  display: inline-block;
+  width: 90%;
+}
+/** END Shekhar: CSS for the add wakepoints **/
+
+@media (max-width: 768px) {
+/** Shekhar: CSS for the checkout page **/
+	.path-checkout form.commerce-checkout-flow-multistep-default .layout-region-checkout-main {
+	  width: 100%;
+	}
+	.path-checkout form.commerce-checkout-flow-multistep-default .layout-region-checkout-secondary{
+		width: 100%;
+	}
+	.path-checkout form.commerce-checkout-flow-multistep-default .layout-region-checkout-footer{
+		width: 100%;
+	}
+  .camp-popup{
+    position: fixed;
+    top: auto;
+    bottom: 10%;
+  }
+
+  /** Shekhar: CSS for the add wakepoints **/
+  #wakepoints-wakepoint-form .js-form-wrapper.form-wrapper {
+    display: inline-block;
+    width: 100%;
+  }
+  #wakepoints-wakepoint-form .js-form-wrapper.form-wrapper select {
+    width: 90%;
+  }
+  #wakepoints-wakepoint-form .js-form-wrapper.form-wrapper input {
+    width: 90%;
+  }
+  #wakepoints-wakepoint-form .js-form-wrapper.form-wrapper fieldset {
+    width: 90%;
+  }
+  #wakepoints-wakepoint-form .js-form-wrapper.form-wrapper fieldset .js-form-item.form-item {
+    display: inline-block;
+    width: 49%;
+  }
+  #wakepoints-wakepoint-form .js-form-wrapper.form-wrapper fieldset .js-form-item.form-item input{
+    display: inline-block;
+    width: 90%;
+  }
+  /** END Shekhar: CSS for the add wakepoints **/  
+}
+
+/** Shekhar css for input boxes on mobile **/
+@media (max-width: 480px) {
+  .container form input[type="text"], form input[type="tel"], form input[type="email"], form input[type="password"], form select{
+    width: 100%;
+  }
+  /** Shekhar: CSS for the coticonfig => text alignement for the cart**/
+  .path-cart .cart.cart-form form table{
+    table-layout: fixed;
+  }
+  /** END Shekhar: CSS for the coticonfig => text alignement for the cart**/
+
+}
+/** END Shekhar css for input boxes on mobile **/

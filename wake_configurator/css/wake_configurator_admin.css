@@ -1,0 +1,9 @@
+.node-search-user-form.node-form .field--name-title,
+.node-search-user-form.node-form .layout-region.layout-region-node-secondary,
+.node-search-user-form.node-form .layout-region.layout-region-node-footer .field--name-status
+{
+	display: none;
+}
+.node-search-user-form.node-form .layout-region-node-footer__content {
+	border: none;
+}

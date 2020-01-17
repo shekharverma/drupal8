@@ -1,0 +1,534 @@
+<?php
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\webform\WebformSubmissionInterface;
+use Drupal\Core\Routing;
+use Drupal\views\Views;
+use Drupal\views\ViewExecutable;
+use Drupal\views\Plugin\views\query\QueryPluginBase;
+use Drupal\commerce_price\Price;
+use Drupal\commerce_order\Adjustment;
+
+
+function wake_configurator_camp_form_alter(&$form, FormStateInterface $form_state, $form_id){
+
+    $user_roles = \Drupal::currentUser()->getRoles();
+    $role_has_all_access = 'accueil';
+
+    /** if accueil is adding the form then getting current user id from url **/
+	if((in_array($role_has_all_access, $user_roles)) && (isset($_GET['member'])) && $_GET['member'] !=''){
+		$user = \Drupal\user\Entity\User::load($_GET['member']);	
+	}else{
+    	$user = \Drupal\user\Entity\User::load(\Drupal::currentUser()->id());
+	}
+
+
+    $currentUserName = '';
+    $currentUserId = 0;
+    if($user && isset($user->get('name')->value) && $user->get('name')->value != ''){
+    	$currentUserName	=	$user->get('name')->value;
+    	$currentUserId		=	$user->id();
+    }
+
+	/** getting current url  **/
+	$path = \Drupal::request()->getpathInfo();
+
+
+	if($form_id == 'webform_submission_config_camp_add_form'){
+
+		if(isset($form['elements']['week_select']['listing']['camp_dispowbd']['#options']) && count($form['elements']['week_select']['listing']['camp_dispowbd']['#options']) > 0){		
+			$new_week_options = array();
+			$week_options = $form['elements']['week_select']['listing']['camp_dispowbd']['#options'];
+			foreach ($week_options as $week_id => $res_week_options) {
+				$select_week_availability = db_query("SELECT fcl.field_campstock_level_value FROM camp_stock__field_campstock_level AS fcl INNER JOIN camp_stock__field_camp_id AS fci ON fci.entity_id=fcl.entity_id INNER JOIN commerce_product_variation__attribute_semaine AS vas ON vas.entity_id=fci.field_camp_id_target_id WHERE fcl.field_campstock_level_value > 0 AND vas.bundle ='camp_wbd' AND vas.attribute_semaine_target_id=".$week_id." LIMIT 1");
+				foreach ($select_week_availability as $key => $res_week_availability) {
+					$new_week_options[$week_id] = $res_week_options;
+				}
+			}
+			$form['elements']['week_select']['listing']['camp_dispowbd']['#options'] = $new_week_options;
+		}
+
+		if(isset($form['elements']['week_select']['listing']['camp_p1']['#options']) && count($form['elements']['week_select']['listing']['camp_p1']['#options']) > 0){		
+			$new_week_options = array();
+			$week_options = $form['elements']['week_select']['listing']['camp_p1']['#options'];
+			foreach ($week_options as $week_id => $res_week_options) {
+				$select_week_availability = db_query("SELECT fcl.field_campstock_level_value FROM camp_stock__field_campstock_level AS fcl INNER JOIN camp_stock__field_camp_id AS fci ON fci.entity_id=fcl.entity_id INNER JOIN commerce_product_variation__attribute_semaine AS vas ON vas.entity_id=fci.field_camp_id_target_id INNER JOIN commerce_product_variation__attribute_prix_camps AS apc ON apc.entity_id=vas.entity_id WHERE fcl.field_campstock_level_value > 0 AND vas.bundle ='camp_wbd' AND apc.attribute_prix_camps_target_id=99 AND vas.attribute_semaine_target_id=".$week_id." LIMIT 1");
+				foreach ($select_week_availability as $key => $res_week_availability) {
+					$new_week_options[$week_id] = $res_week_options;
+				}
+			}
+			$form['elements']['week_select']['listing']['camp_p1']['#options'] = $new_week_options;
+		}
+
+		if(isset($form['elements']['week_select']['listing']['camp_dispowf']['#options']) && count($form['elements']['week_select']['listing']['camp_dispowf']['#options']) > 0){		
+			$new_week_options = array();
+			$week_options = $form['elements']['week_select']['listing']['camp_dispowf']['#options'];
+			foreach ($week_options as $week_id => $res_week_options) {
+				$select_week_availability = db_query("SELECT fcl.field_campstock_level_value FROM camp_stock__field_campstock_level AS fcl INNER JOIN camp_stock__field_camp_id AS fci ON fci.entity_id=fcl.entity_id INNER JOIN commerce_product_variation__attribute_semaine AS vas ON vas.entity_id=fci.field_camp_id_target_id WHERE fcl.field_campstock_level_value > 0 AND vas.bundle ='camp_wf' AND vas.attribute_semaine_target_id=".$week_id." LIMIT 1");
+				foreach ($select_week_availability as $key => $res_week_availability) {
+					$new_week_options[$week_id] = $res_week_options;
+				}
+			}
+			$form['elements']['week_select']['listing']['camp_dispowf']['#options'] = $new_week_options;
+		}
+
+		if(isset($form['elements']['week_select']['listing']['camp_dispomc']['#options']) && count($form['elements']['week_select']['listing']['camp_dispomc']['#options']) > 0){		
+			$new_week_options = array();
+			$week_options = $form['elements']['week_select']['listing']['camp_dispomc']['#options'];
+			foreach ($week_options as $week_id => $res_week_options) {
+				$select_week_availability = db_query("SELECT fcl.field_campstock_level_value FROM camp_stock__field_campstock_level AS fcl INNER JOIN camp_stock__field_camp_id AS fci ON fci.entity_id=fcl.entity_id INNER JOIN commerce_product_variation__attribute_semaine AS vas ON vas.entity_id=fci.field_camp_id_target_id WHERE fcl.field_campstock_level_value > 0 AND vas.bundle ='camp_mc' AND vas.attribute_semaine_target_id=".$week_id." LIMIT 1");
+				foreach ($select_week_availability as $key => $res_week_availability) {
+					$new_week_options[$week_id] = $res_week_options;
+				}
+			}
+			$form['elements']['week_select']['listing']['camp_dispomc']['#options'] = $new_week_options;
+		}		
+
+		if(isset($form['elements']['cotisation']['morning_01']['oi_discount_wbd_am']['#options']) && count($form['elements']['cotisation']['morning_01']['oi_discount_wbd_am']['#options']) > 0){
+			$i = 0;
+			foreach ($form['elements']['cotisation']['morning_01']['oi_discount_wbd_am']['#options'] as $key => $value) {
+				if($i==0){
+					$form['elements']['cotisation']['morning_01']['oi_discount_wbd_am']['#default_value'] = $key;
+				}
+				$i++;
+			}
+		}else{
+			$form['elements']['cotisation']['morning_01']['oi_discount_wbd_am']['#default_value'] = '';
+		}
+
+		if(isset($form['elements']['cotisation']['morning_02']['oi_coach_mc']['#options']) && count($form['elements']['cotisation']['morning_02']['oi_coach_mc']['#options']) > 0){
+			$i = 0;
+			foreach ($form['elements']['cotisation']['morning_02']['oi_coach_mc']['#options'] as $key => $value) {
+				if($i==0){
+					$form['elements']['cotisation']['morning_02']['oi_coach_mc']['#default_value'] = $key;
+				}
+				$i++;
+			}
+		}else{
+			$form['elements']['cotisation']['morning_02']['oi_coach_mc']['#default_value'] = '';
+		}
+
+		if(isset($form['elements']['cotisation']['morning_02']['oi_discount_mc']['#options']) && count($form['elements']['cotisation']['morning_02']['oi_discount_mc']['#options']) > 0){
+			$i = 0;
+			foreach ($form['elements']['cotisation']['morning_02']['oi_discount_mc']['#options'] as $key => $value) {
+				if($i==0){
+					$form['elements']['cotisation']['morning_02']['oi_discount_mc']['#default_value'] = $key;
+				}
+				$i++;
+			}
+		}else{
+			$form['elements']['cotisation']['morning_02']['oi_discount_mc']['#default_value'] = '';
+		}
+
+		if(isset($form['elements']['cotisation']['pm_01']['oi_discount_wbd_pm']['#options']) && count($form['elements']['cotisation']['pm_01']['oi_discount_wbd_pm']['#options']) > 0){
+			$i = 0;
+			foreach ($form['elements']['cotisation']['pm_01']['oi_discount_wbd_pm']['#options'] as $key => $value) {
+				if($i==0){
+					$form['elements']['cotisation']['pm_01']['oi_discount_wbd_pm']['#default_value'] = $key;
+				}
+				$i++;
+			}
+		}else{
+			$form['elements']['cotisation']['pm_01']['oi_discount_wbd_pm']['#default_value'] = '';
+		}
+
+		if(isset($form['elements']['cotisation']['pm_02']['oi_discount_fdc']['#options']) && count($form['elements']['cotisation']['pm_02']['oi_discount_fdc']['#options']) > 0){
+			$i = 0;
+			foreach ($form['elements']['cotisation']['pm_02']['oi_discount_fdc']['#options'] as $key => $value) {
+				if($i==0){
+					$form['elements']['cotisation']['pm_02']['oi_discount_fdc']['#default_value'] = $key;
+				}
+				$i++;
+			}
+		}else{
+			$form['elements']['cotisation']['pm_02']['oi_discount_fdc']['#default_value'] = '';
+		}						
+
+		/** code when user user submit for preview **/
+		// if (isset($form['actions']['preview_next']['#type']) && $form['actions']['preview_next']['#type'] === 'submit') {
+		//    	$form['actions']['preview_next']['#validate'][]	=	'wake_configurator_camp_config_camp_form_validate';
+		//    	$form['actions']['preview_next']['#submit'][]	=	'wake_configurator_camp_config_camp_form_submit';
+		// }
+	}
+}
+
+/** preview button custom validate function to set value of order total and discount before final submit **/
+// function wake_configurator_camp_config_camp_form_validate(&$form, FormStateInterface $form_state){
+// 	$unit_price_field_values = array();
+
+// 	$values = $form_state->getValues();
+// 	// print "<pre>"; print_r($values); die();
+// 	$unit_price_field_values = array('oi_wbd_am_1'=>$values['oi_wbd_am_1'], 'oi_wbd_pm_1'=>$values['oi_wbd_pm_1'], 'oi_mc_am_1'=>$values['oi_mc_am_1'], 'oi_wf_pm_1'=>$values['oi_wf_pm_1'], 'oi_option_1'=>$values['oi_option_1'], 'oi_repas_1'=>$values['oi_repas_1'], 'oi_tshirt_1'=>$values['oi_tshirt_1']);
+
+// 	if(isset($values['oi_wbd_am_1']) && $values['oi_wbd_am_1'] != '' && isset($values['oi_wf_pm_1']) && $values['oi_wf_pm_1'] != ''){
+
+// 		$discount_unit_price_field_values = array('oi_discount_wbd_am'=>$values['oi_discount_wbd_am'], 'oi_discount_wbd_pm'=>$values['oi_discount_wbd_pm'], 'oi_discount_mc'=>$values['oi_discount_mc'], 'oi_discount_fdc'=>$values['oi_discount_fdc']);
+// 	}else{
+// 		$discount_unit_price_field_values = array('oi_discount_wbd_am'=>$values['oi_discount_wbd_am'], 'oi_discount_wbd_pm'=>$values['oi_discount_wbd_pm'], 'oi_discount_mc'=>$values['oi_discount_mc']);
+// 	}
+
+// 	$total_order_amount		=	0;
+// 	$total_discount_amount	=	0;
+
+// 	foreach($unit_price_field_values AS $field_key=>$res_unit_price_field_values){
+// 		if($res_unit_price_field_values != ''){
+// 			$get_variations_data = db_query("SELECT price__number FROM commerce_product_variation_field_data WHERE variation_id=".$res_unit_price_field_values." LIMIT 1");
+// 			foreach ($get_variations_data as $res_variations_data) {
+// 					$total_order_amount+=	$res_variations_data->price__number;
+// 			} 
+// 		}	
+// 	}
+
+// 	foreach($discount_unit_price_field_values AS $field_key=>$res_discount_unit_price_field_values){
+// 		if($res_discount_unit_price_field_values != ''){
+// 			$get_discount_data = db_query("SELECT field_discount_number FROM commerce_product_attribute_value__field_discount WHERE entity_id=".$res_discount_unit_price_field_values." LIMIT 1");
+// 			foreach ($get_discount_data as $res_discount_data) {
+// 					$total_discount_amount+=	$res_discount_data->field_discount_number;
+// 			} 
+// 		}	
+// 	}	
+
+// 	if(isset($values['camp_order_total'])){
+// 		$total_order_amount	=	number_format($total_order_amount,2,",",".");
+// 		$form_state->setValue('camp_order_total', $total_order_amount);
+// 	}
+// 	if(isset($values['camp_discount_total'])){
+// 		$total_discount_amount	=	number_format($total_discount_amount,2,",",".");
+// 		$form_state->setValue('camp_discount_total', $total_discount_amount);
+// 	}	
+// }
+
+/** camp config preview button custom submit function **/
+function wake_configurator_camp_config_camp_form_submit(&$form, FormStateInterface $form_state){
+
+}
+
+/** coti config(membership) form elements alter to change the dropdown field values according to current user **/
+function wake_configurator_camp_webform_element_alter(array &$element, FormStateInterface $form_state, array $context) {
+
+    $user_roles = \Drupal::currentUser()->getRoles();
+    $role_has_all_access = 'accueil';
+
+    /** if accueil is adding the form then getting current user id from url **/
+	if((in_array($role_has_all_access, $user_roles)) && (isset($_GET['member'])) && $_GET['member'] !=''){
+		$user = \Drupal\user\Entity\User::load($_GET['member']);	
+	}else{
+    	$user = \Drupal\user\Entity\User::load(\Drupal::currentUser()->id());
+	}
+
+
+    $currentUserName = '';
+    $currentUserId = 0;
+    if($user && isset($user->get('name')->value) && $user->get('name')->value != ''){
+    	$currentUserName	=	$user->get('name')->value;
+    	$currentUserId		=	$user->id();
+    }
+
+	$new_user = 0;
+	if(isset($user->field_user_usernew->value) && $user->field_user_usernew->value !='') {
+		$new_user = $user->field_user_usernew->value;
+	}    
+
+
+	$current_language = \Drupal::languageManager()->getCurrentLanguage(\Drupal\Core\Language\LanguageInterface::TYPE_INTERFACE)->getId();    
+
+
+	/** Config Camp webform fields for first tab **/
+    if($element['#webform_id'] == "config_camp--rider_info"){
+     	if(isset($element['flexbox_hidden']['o_customer']) && isset($element['flexbox_hidden']['o_customer']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_hidden']['o_customer']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+			$element['flexbox_hidden']['o_customer']['#default_value'] = $currentUserId;
+		} 
+    	if(isset($element['flexbox_hidden']['oi_enduser_1']) && isset($element['flexbox_hidden']['oi_enduser_1']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_hidden']['oi_enduser_1']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}		   	
+    }
+
+	/** Config Camp webform fields for 3nd tab **/
+    if($element['#webform_id'] == "config_camp--cotisation"){ 
+
+    	/** getting first and 2nd tab field values to filter 3rd tab fields **/
+		$camp_values = $form_state->getValues();
+    	if(isset($camp_values['oi_enduser_1']) && $camp_values['oi_enduser_1'] !='' && isset($camp_values['select_week']) && $camp_values['select_week'] !=''){
+    		$parentuser_id	=	$camp_values['o_customer'];
+			$parentUser = \Drupal\user\Entity\User::load($parentuser_id);
+
+			$parentUserName = '';
+			if(isset($parentUser->get('name')->value) && $parentUser->get('name')->value != ''){
+				$parentUserName	=	$parentUser->get('name')->value;
+			}
+
+    		$enduser_id		=	$camp_values['oi_enduser_1']; 
+
+			$loadEndUser = \Drupal\user\Entity\User::load($enduser_id);
+
+			$endUserName = '';
+			if(isset($loadEndUser->get('name')->value) && $loadEndUser->get('name')->value != ''){
+				$endUserName	=	$loadEndUser->get('name')->value;
+			}
+
+    		$week_selected	=	$camp_values['select_week']; // week selected in the webform in 2nd tab
+    		$product_attributes_week = \Drupal\commerce_product\Entity\ProductAttributeValue::load($week_selected);
+    		/** getting week number to pass in field filters **/
+    		$week_number	=	$product_attributes_week->get('field_week_num')->value;
+
+
+    		/** Calculating purchased classes to filter oi_wbd_am_1 and oi_wbd_pm_1 **/
+			$select_ordered_classes = db_query("SELECT coi.purchased_entity, coi.created FROM commerce_order_item__field_commerce_enduser AS fce INNER JOIN commerce_order_item AS coi ON coi.order_item_id=fce.entity_id INNER JOIN commerce_order__order_items AS cooi ON cooi.order_items_target_id = coi.order_item_id INNER JOIN commerce_product_variation AS cpv ON cpv.variation_id=coi.purchased_entity WHERE cpv.type='camp_wbd' AND coi.order_id != '' AND coi.type='configurator_camp' AND fce.field_commerce_enduser_target_id=".$enduser_id);
+
+			$purchased_classes		=	array();
+			// $afternoon_purchased_classes 	=	array();
+			// foreach ($select_ordered_classes as $res_ordered_classes) {
+			// 	print "<pre>"; print_r($res_ordered_classes);
+			// }die();
+
+			foreach ($select_ordered_classes as $res_ordered_classes) {
+				// $purchased_variation_id[] 		=	$res_ordered_classes->purchased_entity;
+				$entity_manager = \Drupal::entityManager();
+
+				$load_purchased_product_variation = $entity_manager->getStorage('commerce_product_variation')->load($res_ordered_classes->purchased_entity);
+				// print "<pre>"; print_r($load_purchased_product_variation); die();
+
+				// $get_purchased_period_attribute	=	$load_purchased_product_variation->get('attribute_periode_wbd')->target_id;
+
+				// $load_purchased_period_attribute = \Drupal\commerce_product\Entity\ProductAttributeValue::load($get_purchased_period_attribute);
+
+				// $purchased_period_name 	=	$load_purchased_period_attribute->get('name')->value;
+
+				if(isset($load_purchased_product_variation->get('attribute_semaine')->target_id) && $load_purchased_product_variation->get('attribute_semaine')->target_id != ''){
+					$purchased_week_attribute	=	$load_purchased_product_variation->get('attribute_semaine')->target_id;
+				}else{
+					$purchased_week_attribute = '';
+				}
+
+				if(isset($load_purchased_product_variation->get('attribute_prix_camps')->target_id) && $load_purchased_product_variation->get('attribute_prix_camps')->target_id != ''){
+					$get_purchased_class_attribute	=	$load_purchased_product_variation->get('attribute_prix_camps')->target_id;
+				}else{
+					$get_purchased_class_attribute = '';
+				}
+
+
+				$current_year	=	date('Y');
+				$purchased_year	=	date('Y', $res_ordered_classes->created); 
+
+				if($week_selected == $purchased_week_attribute && $purchased_year == $current_year && $get_purchased_class_attribute != ''){
+					$load_purchased_class_attribute = \Drupal\commerce_product\Entity\ProductAttributeValue::load($get_purchased_class_attribute);
+					$purchased_classes[] = $load_purchased_class_attribute->get('field_price_class')->value;
+
+				}
+
+				// if($week_selected == $purchased_week_attribute && $purchased_period_name == 'Afternoon'){
+
+				// 	$afternoon_purchased_classes[] = $load_purchased_class_attribute->get('field_price_class')->value;
+
+				// }				
+			} 
+
+			/** END Calculating purchased classes to filter oi_wbd_am_1 and oi_wbd_pm_1 **/
+
+			/** getting all classes for oi_wbd_am_1 and oi_wbd_pm_1 **/
+			$all_prix_classes = array();
+    		$select_all_prix_camps = db_query("SELECT attribute_value_id FROM commerce_product_attribute_value WHERE attribute='prix_camps'");
+    		foreach ($select_all_prix_camps as $res_all_prix_camps) {
+    			$load_prix_camp = \Drupal\commerce_product\Entity\ProductAttributeValue::load($res_all_prix_camps->attribute_value_id);
+    			$all_prix_classes[] = $load_prix_camp->get('field_price_class')->value;
+    		}    		
+    		/** End getting alss classes for oi_wbd_am_1 and oi_wbd_pm_1 **/
+
+    		/** adding the filter value for oi_wbd_am_1 (also checking using purchased morning classes) **/
+	    	if(isset($element['morning_01']['oi_wbd_am_1']) && isset($element['morning_01']['oi_wbd_am_1']['#selection_settings']['view']['arguments'])){
+	    		
+	    		$element['morning_01']['oi_wbd_am_1']['#selection_settings']['view']['arguments'][0] = $week_number;
+		    	$element['morning_01']['oi_wbd_am_1']['#selection_settings']['view']['arguments'][1] = 'morning';
+		    	
+		    	if((count($purchased_classes) > 0) && (count($all_prix_classes) > 0)){
+		    		$available_classes 	=	array();
+		    		$available_classes	=	array_diff($all_prix_classes,$purchased_classes);
+		    		if(count($available_classes) > 0){
+		    			$implode_available_classes = implode(',', $available_classes);
+		    		}else{
+		    			$implode_available_classes = 'NA';
+		    		}
+
+		    		$element['morning_01']['oi_wbd_am_1']['#selection_settings']['view']['arguments'][2] = $implode_available_classes;
+
+	    		}else if(count($all_prix_classes) > 0){
+	    			
+	    			$implode_all_prix_classes = implode(',', $all_prix_classes);
+	    			
+	    			$element['morning_01']['oi_wbd_am_1']['#selection_settings']['view']['arguments'][2] = $implode_all_prix_classes;
+	    		}
+			}	
+			/** END adding the filter value for oi_wbd_am_1 (also checking using purchased morning classes) **/
+
+			/** adding the filter value for oi_discount_wbd_am **/
+			if(isset($element['morning_01']['oi_discount_wbd_am']) && isset($element['morning_01']['oi_discount_wbd_am']['#selection_settings']['view']['arguments'])){
+				$element['morning_01']['oi_discount_wbd_am']['#selection_settings']['view']['arguments'][0] = $parentUserName;
+			}
+			/** END adding the filter value for oi_discount_wbd_am **/
+
+			/** adding the filter value for oi_mc_am_1 **/
+			if(isset($element['morning_02']['oi_mc_am_1']) && isset($element['morning_02']['oi_mc_am_1']['#selection_settings']['view']['arguments'])){
+				$element['morning_02']['oi_mc_am_1']['#selection_settings']['view']['arguments'][0] = $week_number;
+			}
+			/** END adding the filter value for oi_mc_am_1 **/
+
+			/** adding the filter value for oi_coach_mc **/
+			if(isset($element['morning_02']['oi_coach_mc']) && isset($element['morning_02']['oi_coach_mc']['#selection_settings']['view']['arguments'])){
+				$element['morning_02']['oi_coach_mc']['#selection_settings']['view']['arguments'][0] = $week_number;
+			}
+			/** END adding the filter value for oi_coach_mc **/					
+
+			/** adding the filter value for oi_discount_mc **/
+			if(isset($element['morning_02']['oi_discount_mc']) && isset($element['morning_02']['oi_discount_mc']['#selection_settings']['view']['arguments'])){
+				$element['morning_02']['oi_discount_mc']['#selection_settings']['view']['arguments'][0] = $endUserName;
+			}			
+			/** END adding the filter value for oi_discount_mc **/
+
+			/** adding the filter value for oi_wbd_pm_1 (also checking using purchased afternoon classes) **/
+	    	if(isset($element['pm_01']['oi_wbd_pm_1']) && isset($element['pm_01']['oi_wbd_pm_1']['#selection_settings']['view']['arguments'])){
+	    		
+	    		$element['pm_01']['oi_wbd_pm_1']['#selection_settings']['view']['arguments'][0] = $week_number;
+		    	$element['pm_01']['oi_wbd_pm_1']['#selection_settings']['view']['arguments'][1] = 'afternoon';
+		    	
+		    	if((count($purchased_classes) > 0) && (count($all_prix_classes) > 0)){
+		    		$available_classes 	=	array();
+		    		$available_classes	=	array_diff($all_prix_classes,$purchased_classes);
+		    		if(count($available_classes) > 0){
+		    			$implode_available_classes = implode(',', $available_classes);
+		    		}else{
+		    			$implode_available_classes = 'NA';
+		    		}
+
+		    		$element['pm_01']['oi_wbd_pm_1']['#selection_settings']['view']['arguments'][2] = $implode_available_classes;
+
+	    		}else if(count($all_prix_classes) > 0){
+	    			
+	    			$implode_all_prix_classes = implode(',', $all_prix_classes);
+	    			
+	    			$element['pm_01']['oi_wbd_pm_1']['#selection_settings']['view']['arguments'][2] = $implode_all_prix_classes;
+	    		}
+			}
+			/** END adding the filter value for oi_wbd_pm_1 (also checking using purchased afternoon classes) **/
+
+			/** adding the filter value for oi_discount_wbd_pm **/
+			if(isset($element['pm_01']['oi_discount_wbd_pm']) && isset($element['pm_01']['oi_discount_wbd_pm']['#selection_settings']['view']['arguments'])){
+				$element['pm_01']['oi_discount_wbd_pm']['#selection_settings']['view']['arguments'][0] = $parentUserName;
+			}
+			/** END adding the filter value for oi_discount_wbd_pm **/
+
+			/** adding the filter value for oi_wf_pm_1 (also checking using purchased afternoon wf classes) **/
+	    	if(isset($element['pm_02']['oi_wf_pm_1']) && isset($element['pm_02']['oi_wf_pm_1']['#selection_settings']['view']['arguments'])){
+
+				$select_ordered_classes_wf = db_query("SELECT coi.purchased_entity, coi.created FROM commerce_order_item__field_commerce_enduser AS fce INNER JOIN commerce_order_item AS coi ON coi.order_item_id=fce.entity_id INNER JOIN commerce_order__order_items AS cooi ON cooi.order_items_target_id = coi.order_item_id INNER JOIN commerce_product_variation AS cpv ON cpv.variation_id=coi.purchased_entity WHERE cpv.type='camp_wf' AND coi.order_id != '' AND coi.type='configurator_camp' AND fce.field_commerce_enduser_target_id=".$enduser_id);
+
+				$purchased_classes_wf 	=	array();
+
+				foreach ($select_ordered_classes_wf as $res_ordered_classes_wf) {
+					// $purchased_variation_id[] 		=	$res_ordered_classes->purchased_entity;
+					$entity_manager = \Drupal::entityManager();
+
+					$load_purchased_product_variation_wf = $entity_manager->getStorage('commerce_product_variation')->load($res_ordered_classes_wf->purchased_entity);
+
+					// $get_purchased_period_attribute_wf	=	$load_purchased_product_variation_wf->get('attribute_periode_wbd')->target_id;
+
+					// $load_purchased_period_attribute_wf = \Drupal\commerce_product\Entity\ProductAttributeValue::load($get_purchased_period_attribute_wf);
+
+					// $purchased_period_name_wf 	=	$load_purchased_period_attribute_wf->get('name')->value;
+
+					if(isset($load_purchased_product_variation_wf->get('attribute_semaine')->target_id) && $load_purchased_product_variation_wf->get('attribute_semaine')->target_id != ''){
+						$purchased_week_attribute_wf	=	$load_purchased_product_variation_wf->get('attribute_semaine')->target_id;
+					}else{
+						$purchased_week_attribute_wf = '';
+					}
+
+					if(isset($load_purchased_product_variation_wf->get('attribute_prix_camps_wf')->target_id) && $load_purchased_product_variation_wf->get('attribute_prix_camps_wf')->target_id != ''){
+						$get_purchased_class_attribute_wf	=	$load_purchased_product_variation_wf->get('attribute_prix_camps_wf')->target_id;
+					}else{
+						$get_purchased_class_attribute_wf = '';
+					}					
+
+
+
+					$current_year_wf	=	date('Y');
+					$purchased_year_wf	=	date('Y', $res_ordered_classes_wf->created); 
+
+					if($week_selected == $purchased_week_attribute_wf && $purchased_year_wf == $current_year_wf && $get_purchased_class_attribute_wf != ''){
+
+						$load_purchased_class_attribute_wf = \Drupal\commerce_product\Entity\ProductAttributeValue::load($get_purchased_class_attribute_wf);
+						$purchased_classes_wf[] = $load_purchased_class_attribute_wf->get('field_price_class')->value;
+
+					}				
+
+				}
+
+				$all_prix_camps_wf_classes = array();
+	    		$select_all_prix_camps_wf = db_query("SELECT attribute_value_id FROM commerce_product_attribute_value WHERE attribute='prix_camps_wf'");
+	    		foreach ($select_all_prix_camps_wf as $res_all_prix_camps_wf) {
+	    			$load_prix_camps_wf = \Drupal\commerce_product\Entity\ProductAttributeValue::load($res_all_prix_camps_wf->attribute_value_id);
+	    			$all_prix_camps_wf_classes[] = $load_prix_camps_wf->get('field_price_class')->value;
+	    		}
+
+
+	    		$element['pm_02']['oi_wf_pm_1']['#selection_settings']['view']['arguments'][0] = $week_number;
+		    	$element['pm_02']['oi_wf_pm_1']['#selection_settings']['view']['arguments'][1] = 'afternoon';
+		    	
+		    	if((count($purchased_classes_wf) > 0) && (count($all_prix_camps_wf_classes) > 0)){
+		    		$available_prix_camps_wf 	=	array();
+		    		$available_prix_camps_wf	=	array_diff($all_prix_camps_wf_classes,$purchased_classes_wf);
+
+		    		if(count($available_prix_camps_wf) > 0){
+		    			$implode_available_prix_camps_wf = implode(',', $available_prix_camps_wf);
+		    		}else{
+		    			$implode_available_prix_camps_wf = 'NA';
+		    		}
+
+		    		$element['pm_02']['oi_wf_pm_1']['#selection_settings']['view']['arguments'][2] = $implode_available_prix_camps_wf;
+
+	    		}else if(count($all_prix_camps_wf_classes) > 0){
+	    			
+	    			$implode_allprix_camps_wf = implode(',', $all_prix_camps_wf_classes);
+	    			
+	    			$element['pm_02']['oi_wf_pm_1']['#selection_settings']['view']['arguments'][2] = $implode_allprix_camps_wf;
+	    		}
+			}/** END adding the filter value for oi_wf_pm_1 (also checking using purchased afternoon wf classes) **/
+
+		} /** END getting first and 2nd tab field values to filter 3rd tab fields **/
+
+    } /** END Config Camp webform fields for 3rd tab **/
+}
+
+/** if order state is completed then changing the customer 'new user field' value to null **/
+function wake_configurator_camp_commerce_order_update(Drupal\Core\Entity\EntityInterface $entity) {
+	$customer_uid 			=	$entity->getCustomerId(); 
+	$order_number			=	$entity->getOrderNumber();
+	$order_id 				=	$entity->id();
+	$current_order_state	=	$entity->getState()->value; 
+	$order_type 			=	$entity->bundle();
+
+	if($order_type == 'configurator_camp'){
+		if(isset($entity->original)){
+			$original_state =  $entity->original->getState()->value;
+		}
+
+		if($current_order_state == 'validation' && $original_state != 'validation'){
+			// die('validations');
+			if(isset($order_id) && $order_id != ''){
+				$select_camp_order_items = db_query("SELECT csci.entity_id, coi.quantity FROM camp_stock__field_camp_id AS csci INNER JOIN commerce_order_item AS coi ON coi.purchased_entity = csci.field_camp_id_target_id WHERE coi.order_id=".$order_id);
+				foreach ($select_camp_order_items as $key => $res_camp_order_items) {
+				// print	$res_camp_order_items->entity_id; print "<br>";
+					$item_quantity = round($res_camp_order_items->quantity);
+					$stock_entity =  \Drupal::entityTypeManager()->getStorage('camp_stock')->load($res_camp_order_items->entity_id);
+					$stock_value = $stock_entity->get('field_campstock_level')->value;
+					if($stock_value > 0){
+						$new_stock_value = $stock_value-$item_quantity;
+			            if($new_stock_value >=0){
+			              $stock_entity->set('field_campstock_level', $new_stock_value);
+			              $stock_entity->save();
+			            }
+					}
+				} 
+			}	
+		}		
+	}
+}

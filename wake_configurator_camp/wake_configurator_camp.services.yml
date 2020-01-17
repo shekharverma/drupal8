@@ -1,0 +1,6 @@
+services:
+  wake_configurator_camp.wake_order_item_event_subscriber:
+    class: Drupal\wake_configurator_camp\EventSubscriber\WakeOrderItemEventSubsciber
+    arguments: []
+    tags:
+      - { name: event_subscriber }

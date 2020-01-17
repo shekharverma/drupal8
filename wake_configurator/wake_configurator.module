@@ -1,0 +1,1074 @@
+<?php
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\webform\WebformSubmissionInterface;
+use Drupal\Core\Routing;
+use Drupal\views\Views;
+use Drupal\views\ViewExecutable;
+use Drupal\views\Plugin\views\query\QueryPluginBase;
+use Drupal\commerce_price\Price;
+use Drupal\commerce_order\Adjustment;
+
+function wake_configurator_page_attachments(array &$attachments) {
+	global $base_url;
+	if(\Drupal::service('theme.manager')->getActiveTheme()->getName() != "seven")
+	{
+		$attachments['#attached']['library'][] = 'wake_configurator/wakeconfig-lib';
+	}else{
+		$attachments['#attached']['library'][] = 'wake_configurator/wakeconfig-lib-admin';
+	}
+}
+
+
+function wake_configurator_form_alter(&$form, FormStateInterface $form_state, $form_id){
+
+    $user_roles = \Drupal::currentUser()->getRoles();
+    $role_has_all_access = 'accueil';
+
+    /** if accueil is adding the form then getting current user id from url **/
+	if((in_array($role_has_all_access, $user_roles)) && (isset($_GET['member'])) && $_GET['member'] !=''){
+		$user = \Drupal\user\Entity\User::load($_GET['member']);	
+	}elseif((in_array($role_has_all_access, $user_roles)) && (isset($_GET['user'])) && $_GET['user'] !=''){
+		$user = \Drupal\user\Entity\User::load($_GET['user']);	
+	}else{
+    	$user = \Drupal\user\Entity\User::load(\Drupal::currentUser()->id());
+	}
+
+	// print "<pre>"; print_r($user); die();
+    $currentUserName = '';
+    $currentUserId = 0;
+    if($user && isset($user->get('name')->value) && $user->get('name')->value != ''){
+    	$currentUserName	=	$user->get('name')->value;
+    	$currentUserId		=	$user->id();
+    }
+    // print $form_id;
+	if (strpos($form_id, 'commerce_order_item_add_to_cart_form') !== FALSE){
+		if((in_array($role_has_all_access, $user_roles)) && ((isset($_GET['user']) && $_GET['user'] != '') || (isset($_GET['member']) && $_GET['member'] != ''))) {
+			$form['actions']['submit']['#submit'][0] = 'accueil_add_to_cart_form_submit';
+			// print "<pre>"; print_r($form['actions']['submit']['#submit'][0]); die('hiii');
+		}else{
+			$form['actions']['submit']['#submit'][] = 'add_to_cart_submit_redirect_to_cart_page';
+		}	
+	}    
+
+	/** getting current url  **/
+	$path = \Drupal::request()->getpathInfo();
+
+    
+	if(isset($path) && ($path == '/wakecatalog/wbd' || $path == '/wakecatalog/wbd/' || $path == '/en/wakecatalog/wbd' || $path == '/en/wakecatalog/wbd/' || $path == '/fr/wakecatalog/wbd' || $path == '/fr/wakecatalog/wbd/' || $path == '/product/8' || $path == '/product/8/' || $path == '/en/product/8' || $path == '/fr/product/8' || $path == '/en/product/8/' || $path == '/fr/product/8/' || $path == '/product/6' || $path == '/product/6/' || $path == '/en/product/6' || $path == '/fr/product/6' || $path == '/en/product/6/' || $path == '/fr/product/6/' || $path == '/product/12' || $path == '/product/12/' || $path == '/en/product/12' || $path == '/fr/product/12' || $path == '/en/product/12/' || $path == '/fr/product/12/' || $path == '/product/53' || $path == '/product/53/' || $path == '/en/product/53' || $path == '/fr/product/53' || $path == '/en/product/53/' || $path == '/fr/product/53/' || $path == '/product/42' || $path == '/product/42/' || $path == '/en/product/42' || $path == '/fr/product/42' || $path == '/en/product/42/' || $path == '/fr/product/42/' || $path == '/product/26' || $path == '/product/26/' || $path == '/en/product/26' || $path == '/fr/product/26' || $path == '/en/product/26/' || $path == '/fr/product/26/' || $path == '/product/5' || $path == '/product/5/' || $path == '/en/product/5' || $path == '/fr/product/5' || $path == '/en/product/5/' || $path == '/fr/product/5/')){
+
+		if (\Drupal::currentUser()->isAnonymous()) {
+			$redirect = new \Symfony\Component\HttpFoundation\RedirectResponse('/');
+			$redirect->send();
+			exit();	  	
+		}else {
+			if(isset($form['field_commerce_enduser'])) {
+				$new_parentUser_id = $currentUserId;
+
+				/** Checking if parent user exist of current logged in user, else parent user is current logged in user **/
+				$select_parent = db_query("SELECT fsp.field_subuser_parent_target_id FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id WHERE fsc.field_subuser_child_target_id=".$new_parentUser_id);
+				foreach ($select_parent as $key => $res_parent) {
+					$new_parentUser_id = $res_parent->field_subuser_parent_target_id;
+				}
+
+				/** getting subusers of parenet user **/
+				$select_subusers = db_query("SELECT ufd.uid, ufd.name FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id INNER JOIN users_field_data AS ufd ON ufd.uid=fsc.field_subuser_child_target_id WHERE ufd.status=1 AND fsp.field_subuser_parent_target_id=".$new_parentUser_id);
+
+				$new_parentUser = \Drupal\user\Entity\User::load($new_parentUser_id);
+			    if(isset($new_parentUser->get('name')->value) && $new_parentUser->get('name')->value != ''){
+			    	$new_parentUserName	=	$new_parentUser->get('name')->value;
+			    }
+
+				$all_members['_none'] = '- None -';
+
+				if(isset($path) && ($path == '/product/12' || $path == '/product/12/' || $path == '/en/product/12' || $path == '/fr/product/12' || $path == '/en/product/12/' || $path == '/fr/product/12/' || $path == '/product/53' || $path == '/product/53/' || $path == '/en/product/53' || $path == '/fr/product/53' || $path == '/en/product/53/' || $path == '/fr/product/53/' || $path == '/product/42' || $path == '/product/42/' || $path == '/en/product/42' || $path == '/fr/product/42' || $path == '/en/product/42/' || $path == '/fr/product/42/' || $path == '/product/26' || $path == '/product/26/' || $path == '/en/product/26' || $path == '/fr/product/26' || $path == '/en/product/26/' || $path == '/fr/product/26/')){				
+					$all_members[$new_parentUser_id] = $new_parentUserName;
+				}
+
+				foreach ($select_subusers as $key => $res_select_subusers) {
+					$all_members[$res_select_subusers->uid] = $res_select_subusers->name;
+				}
+				$form['field_commerce_enduser']['widget']['#options'] = $all_members;				
+			}
+		}
+	}
+	
+	/** if current url is cart and checkout button is here then unset save order button and adding delete order button **/
+	if(isset($path) && ($path == '/cart' || $path == '/en/cart' || $path == '/fr/cart' || $path == '/cart/' || $path == '/en/cart/' || $path == '/fr/cart/')){
+		if(isset($form['actions']['checkout'])){
+			unset($form['actions']['submit']);
+			$form['actions']['delete'] = array
+			(
+			  '#type' => 'submit',
+			  '#value' => t('Delete'),
+			  '#weight' => 4,
+			  '#access' => 1,
+			  '#submit' => array_merge($form['#submit'],['custom_delete_order_submit']),
+			  '#order_id'=> $form['actions']['checkout']['#order_id'],
+			);			
+		}
+	}
+
+	if(isset($path) && ($path == '/wakecatalog/taxes' || $path == '/en/wakecatalog/taxes' || $path == '/fr/wakecatalog/taxes' || $path == '/wakecatalog/taxes/' || $path == '/en/wakecatalog/taxes/' || $path == '/fr/wakecatalog/taxes/') && isset($form['field_commerce_enduser'])) {
+		$all_members['_none'] = '- None -';
+		$all_members[$currentUserId] = $currentUserName;
+		$form['field_commerce_enduser']['widget']['#options'] = $all_members;
+		$form['field_commerce_enduser']['widget']['#default_value'] = $currentUserId;
+		$form['field_commerce_enduser']['widget']['#attributes']['disabled'] = 'disabled';
+	}
+	if(isset($path) && ($path == '/wakecatalog/kidsparty' || $path == '/en/wakecatalog/kidsparty' || $path == '/fr/wakecatalog/kidsparty' || $path == '/wakecatalog/kidsparty/' || $path == '/en/wakecatalog/kidsparty/' || $path == '/fr/wakecatalog/kidsparty/') && isset($form['field_commerce_enduser'])) {
+		
+		$new_parentUser_id = $currentUserId;
+
+		/** Checking if parent user exist of current logged in user, else parent user is current logged in user **/
+		$select_parent = db_query("SELECT fsp.field_subuser_parent_target_id FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id WHERE fsc.field_subuser_child_target_id=".$new_parentUser_id);
+		foreach ($select_parent as $key => $res_parent) {
+			$new_parentUser_id = $res_parent->field_subuser_parent_target_id;
+		}
+
+		/** getting subusers of parenet user **/
+		$select_subusers = db_query("SELECT ufd.uid, ufd.name FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id INNER JOIN users_field_data AS ufd ON ufd.uid=fsc.field_subuser_child_target_id WHERE ufd.status=1 AND fsp.field_subuser_parent_target_id=".$new_parentUser_id);
+
+		$new_parentUser = \Drupal\user\Entity\User::load($new_parentUser_id);
+	    if(isset($new_parentUser->get('name')->value) && $new_parentUser->get('name')->value != ''){
+	    	$new_parentUserName	=	$new_parentUser->get('name')->value;
+	    }
+
+		$all_members['_none'] = '- None -';
+		// $all_members[$new_parentUser_id] = $new_parentUserName;
+
+		foreach ($select_subusers as $key => $res_select_subusers) {
+			$all_members[$res_select_subusers->uid] = $res_select_subusers->name;
+		}
+		$form['field_commerce_enduser']['widget']['#options'] = $all_members;
+		// $form['field_commerce_enduser']['widget']['#default_value'] = $currentUserId;
+		// $form['field_commerce_enduser']['widget']['#attributes']['disabled'] = 'disabled';
+	}	
+	if(isset($path) && ($path == '/wakecatalog/badge' || $path == '/en/wakecatalog/badge' || $path == '/fr/wakecatalog/badge' || $path == '/wakecatalog/badge/' || $path == '/en/wakecatalog/badge/' || $path == '/fr/wakecatalog/badge/') && isset($form['field_commerce_enduser'])) {
+		
+		$new_parentUser_id = $currentUserId;
+
+		/** Checking if parent user exist of current logged in user, else parent user is current logged in user **/
+		$select_parent = db_query("SELECT fsp.field_subuser_parent_target_id FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id WHERE fsc.field_subuser_child_target_id=".$new_parentUser_id);
+		foreach ($select_parent as $key => $res_parent) {
+			$new_parentUser_id = $res_parent->field_subuser_parent_target_id;
+		}
+
+		/** getting subusers of parenet user **/
+		$select_subusers = db_query("SELECT ufd.uid, ufd.name FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id INNER JOIN users_field_data AS ufd ON ufd.uid=fsc.field_subuser_child_target_id WHERE ufd.status=1 AND fsp.field_subuser_parent_target_id=".$new_parentUser_id);
+
+		$new_parentUser = \Drupal\user\Entity\User::load($new_parentUser_id);
+	    if(isset($new_parentUser->get('name')->value) && $new_parentUser->get('name')->value != ''){
+	    	$new_parentUserName	=	$new_parentUser->get('name')->value;
+	    }
+
+		$all_members['_none'] = '- None -';
+		$all_members[$new_parentUser_id] = $new_parentUserName;
+
+		foreach ($select_subusers as $key => $res_select_subusers) {
+			 $all_members[$res_select_subusers->uid] = $res_select_subusers->name;
+		}
+		$form['field_commerce_enduser']['widget']['#options'] = $all_members;
+		// $form['field_commerce_enduser']['widget']['#default_value'] = $currentUserId;
+		// $form['field_commerce_enduser']['widget']['#attributes']['disabled'] = 'disabled';
+	}
+	if(isset($path) && ($path == '/wakecatalog/comp' || $path == '/en/wakecatalog/comp' || $path == '/fr/wakecatalog/comp'|| $path == '/wakecatalog/comp/' || $path == '/en/wakecatalog/comp/' || $path == '/fr/wakecatalog/comp/') && isset($form['field_commerce_enduser'])) {
+
+		$new_parentUser_id = $currentUserId;
+
+		/** Checking if parent user exist of current logged in user, else parent user is current logged in user **/
+		$select_parent = db_query("SELECT fsp.field_subuser_parent_target_id FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id WHERE fsc.field_subuser_child_target_id=".$new_parentUser_id);
+		foreach ($select_parent as $key => $res_parent) {
+			$new_parentUser_id = $res_parent->field_subuser_parent_target_id;
+		}
+
+		/** getting subusers of parenet user **/
+		$select_subusers = db_query("SELECT ufd.uid, ufd.name FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id INNER JOIN users_field_data AS ufd ON ufd.uid=fsc.field_subuser_child_target_id WHERE ufd.status=1 AND fsp.field_subuser_parent_target_id=".$new_parentUser_id);
+
+		$new_parentUser = \Drupal\user\Entity\User::load($new_parentUser_id);
+	    if(isset($new_parentUser->get('name')->value) && $new_parentUser->get('name')->value != ''){
+	    	$new_parentUserName	=	$new_parentUser->get('name')->value;
+	    }
+
+		$all_members['_none'] = '- None -';
+		$all_members[$new_parentUser_id] = $new_parentUserName;
+
+		foreach ($select_subusers as $key => $res_select_subusers) {
+			 $all_members[$res_select_subusers->uid] = $res_select_subusers->name;
+		}
+		$form['field_commerce_enduser']['widget']['#options'] = $all_members;
+
+	}
+	if(isset($path) && ($path == '/wakecatalog/local' || $path == '/en/wakecatalog/local' || $path == '/fr/wakecatalog/local' || $path == '/wakecatalog/local/' || $path == '/en/wakecatalog/local/' || $path == '/fr/wakecatalog/local/') && isset($form['field_commerce_enduser'])) {
+
+		$new_parentUser_id = $currentUserId;
+
+		/** Checking if parent user exist of current logged in user, else parent user is current logged in user **/
+		$select_parent = db_query("SELECT fsp.field_subuser_parent_target_id FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id WHERE fsc.field_subuser_child_target_id=".$new_parentUser_id);
+		foreach ($select_parent as $key => $res_parent) {
+			$new_parentUser_id = $res_parent->field_subuser_parent_target_id;
+		}
+
+		/** getting subusers of parenet user **/
+		$select_subusers = db_query("SELECT ufd.uid, ufd.name FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id INNER JOIN users_field_data AS ufd ON ufd.uid=fsc.field_subuser_child_target_id WHERE ufd.status=1 AND fsp.field_subuser_parent_target_id=".$new_parentUser_id);
+
+		$new_parentUser = \Drupal\user\Entity\User::load($new_parentUser_id);
+	    if(isset($new_parentUser->get('name')->value) && $new_parentUser->get('name')->value != ''){
+	    	$new_parentUserName	=	$new_parentUser->get('name')->value;
+	    }
+
+		$all_members['_none'] = '- None -';
+		$all_members[$new_parentUser_id] = $new_parentUserName;
+
+		foreach ($select_subusers as $key => $res_select_subusers) {
+			 $all_members[$res_select_subusers->uid] = $res_select_subusers->name;
+		}
+		$form['field_commerce_enduser']['widget']['#options'] = $all_members;
+
+	}	
+	if(isset($path) && ($path == '/wakecatalog/wakesurf-camp' || $path == '/en/wakecatalog/wakesurf-camp' || $path == '/fr/wakecatalog/wakesurf-camp' || $path == '/wakecatalog/wakesurf-camp/' || $path == '/en/wakecatalog/wakesurf-camp/' || $path == '/fr/wakecatalog/wakesurf-camp/')) {
+		$purchased_entities = array();
+		$new_purchased_entities = array();
+		$purchased_entities = $form['purchased_entity']['widget'][0]['variation']['#options'];
+				// print "<pre>"; print_r($purchased_entities); die();
+		if($purchased_entities){
+			foreach ($purchased_entities as $entity_id => $res_purchased_entities) {
+				$get_camp_stock = db_query("SELECT csfcl.field_campstock_level_value FROM camp_stock__field_camp_id AS csfci INNER JOIN camp_stock__field_campstock_level AS csfcl ON csfcl.entity_id = csfci.entity_id WHERE csfci.field_camp_id_target_id=".$entity_id);
+				foreach ($get_camp_stock as $key => $res_camp_stock) {
+					if($res_camp_stock->field_campstock_level_value > 0){
+						$new_purchased_entities[$entity_id] = $res_purchased_entities;
+					}
+				}
+			}
+
+			$form['purchased_entity']['widget'][0]['variation']['#options'] = $new_purchased_entities;
+
+			if($new_purchased_entities){
+				
+			}else{
+				$form['purchased_entity']['widget'][0]['variation']['#options'] = array(""=>"All camps are full");
+				$form['purchased_entity']['widget'][0]['variation']['#default_value'] = '';
+				$form['purchased_entity']['#attributes']['disabled'] = 'disabled';
+				$form['actions']['submit']['#value'] = 'No camp available';				
+			}
+		}
+	}	
+	if(isset($path) && ($path == '/wakecatalog/wakesurf-camp' || $path == '/en/wakecatalog/wakesurf-camp' || $path == '/fr/wakecatalog/wakesurf-camp' || $path == '/wakecatalog/wakesurf-camp/' || $path == '/en/wakecatalog/wakesurf-camp/' || $path == '/fr/wakecatalog/wakesurf-camp/') && isset($form['field_commerce_enduser'])) {
+
+		$new_parentUser_id = $currentUserId;
+
+		/** Checking if parent user exist of current logged in user, else parent user is current logged in user **/
+		$select_parent = db_query("SELECT fsp.field_subuser_parent_target_id FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id WHERE fsc.field_subuser_child_target_id=".$new_parentUser_id);
+		foreach ($select_parent as $key => $res_parent) {
+			$new_parentUser_id = $res_parent->field_subuser_parent_target_id;
+		}
+
+		/** getting subusers of parenet user **/
+		$select_subusers = db_query("SELECT ufd.uid, ufd.name FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id INNER JOIN users_field_data AS ufd ON ufd.uid=fsc.field_subuser_child_target_id WHERE ufd.status=1 AND fsp.field_subuser_parent_target_id=".$new_parentUser_id);
+
+		$new_parentUser = \Drupal\user\Entity\User::load($new_parentUser_id);
+	    if(isset($new_parentUser->get('name')->value) && $new_parentUser->get('name')->value != ''){
+	    	$new_parentUserName	=	$new_parentUser->get('name')->value;
+	    }
+
+		$all_members['_none'] = '- None -';
+		$all_members[$new_parentUser_id] = $new_parentUserName;
+
+		foreach ($select_subusers as $key => $res_select_subusers) {
+			 $all_members[$res_select_subusers->uid] = $res_select_subusers->name;
+		}
+		$form['field_commerce_enduser']['widget']['#options'] = $all_members;
+
+	}
+	if(isset($path) && ($path == '/tour-wakecable' || $path == '/en/tour-wakecable' || $path == '/fr/tour-wakecable' || $path == '/tour-wakecable/' || $path == '/en/tour-wakecable/' || $path == '/fr/tour-wakecable/') && isset($form['field_commerce_enduser'])) {
+
+		$new_parentUser_id = $currentUserId;
+
+		/** Checking if parent user exist of current logged in user, else parent user is current logged in user **/
+		$select_parent = db_query("SELECT fsp.field_subuser_parent_target_id FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id WHERE fsc.field_subuser_child_target_id=".$new_parentUser_id);
+		foreach ($select_parent as $key => $res_parent) {
+			$new_parentUser_id = $res_parent->field_subuser_parent_target_id;
+		}
+
+		/** getting subusers of parenet user **/
+		$select_subusers = db_query("SELECT ufd.uid, ufd.name FROM subuser__field_subuser_parent AS fsp INNER JOIN subuser__field_subuser_child AS fsc ON fsc.entity_id = fsp.entity_id INNER JOIN users_field_data AS ufd ON ufd.uid=fsc.field_subuser_child_target_id WHERE ufd.status=1 AND fsp.field_subuser_parent_target_id=".$new_parentUser_id);
+
+		$new_parentUser = \Drupal\user\Entity\User::load($new_parentUser_id);
+	    if(isset($new_parentUser->get('name')->value) && $new_parentUser->get('name')->value != ''){
+	    	$new_parentUserName	=	$new_parentUser->get('name')->value;
+	    }
+
+		$all_members['_none'] = '- None -';
+		$all_members[$new_parentUser_id] = $new_parentUserName;
+
+		foreach ($select_subusers as $key => $res_select_subusers) {
+			 $all_members[$res_select_subusers->uid] = $res_select_subusers->name;
+		}
+		$form['field_commerce_enduser']['widget']['#options'] = $all_members;
+
+	}
+	if(isset($path) && ($path == '/wakecatalog/wakepoints' || $path == '/en/wakecatalog/wakepoints' || $path == '/fr/wakecatalog/wakepoints' || $path == '/wakecatalog/wakepoints/' || $path == '/en/wakecatalog/wakepoints/' || $path == '/fr/wakecatalog/wakepoints/') && isset($form['field_commerce_enduser'])) {
+		$all_members['_none'] = '- None -';
+		$all_members[$currentUserId] = $currentUserName;
+		$form['field_commerce_enduser']['widget']['#options'] = $all_members;
+		$form['field_commerce_enduser']['widget']['#default_value'] = $currentUserId;
+		$form['field_commerce_enduser']['widget']['#attributes']['disabled'] = 'disabled';
+	}	
+	if(isset($path) && ($path == '/wakecatalog/wakepoints' || $path == '/en/wakecatalog/wakepoints' || $path == '/fr/wakecatalog/wakepoints' || $path == '/wakecatalog/wakepoints/' || $path == '/en/wakecatalog/wakepoints/' || $path == '/fr/wakecatalog/wakepoints/') && isset($form['field_order_member'])) {
+		$i = 0;
+		foreach ($form['field_order_member']['widget']['#options'] as $key => $value) {
+			if($i==0 && $value !='' && $key != '_none'){
+				$form['field_order_member']['widget']['#default_value'] = $key;
+				$i++;
+			}
+		}
+
+		if((in_array($role_has_all_access, $user_roles)) && (isset($_GET['user'])) && $_GET['user'] !=''){
+
+		}else{
+			$form['field_order_member']['widget']['#attributes']['disabled'] = 'disabled';			
+		}
+	}	
+
+	/** adding custom validate and submit functions for config coti webform preview submit button for preview**/
+	if ($form_id == 'webform_submission_config_coti_add_form') {
+
+		if(isset($form['elements']['cotisation']['flexbox']['coti_adulte']['oi_taxe_1']['#options']) && count($form['elements']['cotisation']['flexbox']['coti_adulte']['oi_taxe_1']['#options']) > 0){		
+			$i = 0;
+			foreach ($form['elements']['cotisation']['flexbox']['coti_adulte']['oi_taxe_1']['#options'] as $key => $value) {
+				if($i==0 && $value !='' && $key != '_none'){
+					$form['elements']['cotisation']['flexbox']['coti_adulte']['oi_taxe_1']['#default_value'] = $key;
+					$i++;
+				}
+			}
+			$form['elements']['cotisation']['flexbox']['coti_adulte']['oi_taxe_1']['#attributes']['disabled'] = 'disabled';
+			// print "<pre>"; print_r(); die();
+		}		
+
+		if (isset($form['actions']['preview_next']['#type']) && $form['actions']['preview_next']['#type'] === 'submit') {
+		   	$form['actions']['preview_next']['#validate'][]	=	'wake_configurator_config_coti_form_validate';
+		   	$form['actions']['preview_next']['#submit'][]	=	'wake_configurator_config_coti_form_submit';
+		}
+	}
+
+	if($form_id == "node_search_user_form"){
+		$form['title']['widget'][0]['value']['#default_value'] = 'Searching rider';
+		$form['title']['#access'] = 0;
+		$form['title']['widget'][0]['value']['#attributes']['disabled'] = TRUE;
+		$form['title']['widget'][0]['value']['#attributes']['readonly'] = TRUE;
+		// print "<pre>"; print_r($form['title']); die();
+		$form_state->setTemporaryValue('entity_validated', TRUE);
+		$form['actions']['submit']['#validate'][] = 'wake_configurator_user_search_form_validate';
+		$form['actions']['submit']['#submit'][] 	= 'wake_configurator_user_search_form_submit';
+		$form['actions']['submit']['#value'] = 'Search rider';
+		unset($form['actions']['preview']);
+	}
+
+	if($form_id == 'wakepoints_wakepoint_form'){
+		if(isset($_GET['wp_account_id']) && $_GET['wp_account_id'] != '' && $_GET['wp_account_id']!= 0 && isset($_GET['rider_id']) && $_GET['rider_id'] != '' && $_GET['rider_id'] != 0){
+			$wp_account_id = $_GET['wp_account_id'];
+			$wp_enduser_id = $_GET['rider_id'];
+
+			
+			if(isset($form['field_wpsolde_wpaccount_id']['widget']['#options'])){
+				$form['field_wpsolde_wpaccount_id']['widget']['#default_value'] = $wp_account_id;
+			}
+
+			if(isset($form['field_wpsolde_wpaccount_id']['widget'][0]['target_id'])){
+				$user_wp_account = \Drupal\user\Entity\User::load($wp_account_id);
+				$form['field_wpsolde_wpaccount_id']['widget'][0]['target_id']['#default_value'] = $user_wp_account;
+			}
+
+			if(isset($form['field_wpsolde_enduser']['widget']['#options'])){
+				$form['field_wpsolde_enduser']['widget']['#default_value'] = $wp_enduser_id;	
+			}
+
+			if(isset($form['field_wpsolde_enduser']['widget'][0]['target_id'])){
+				$user_wp_account_rider = \Drupal\user\Entity\User::load($wp_enduser_id);
+				$form['field_wpsolde_enduser']['widget'][0]['target_id']['#default_value'] = $user_wp_account_rider;
+			}			
+			
+
+			$select_last_value = db_query("SELECT ws.field_wpsolde_solde_value FROM wakepoints__field_wpsolde_wpaccount_id AS wi INNER JOIN wakepoints__field_wpsolde_solde AS ws ON ws.entity_id = wi.entity_id WHERE wi.bundle='wakepoint' AND wi.field_wpsolde_wpaccount_id_target_id=".$wp_account_id." ORDER BY ws.entity_id DESC LIMIT 1");
+			foreach ($select_last_value as $key => $res_last_value) {
+				$form['field_wpsolde_solde']['widget'][0]['value']['#default_value'] = $res_last_value->field_wpsolde_solde_value;
+			}
+			$form['field_wpsolde_wpaccount_id']['widget']['#attributes']['disabled'] = True;
+			$form['field_wpsolde_enduser']['widget']['#attributes']['disabled'] = True;	
+		}
+
+		$form['field_wpsolde_order']['widget']['#attributes']['disabled'] = True;
+		$form['field_wpsolde_order_id']['widget'][0]['target_id']['#attributes']['disabled'] = True;
+		$form['field_wpsolde_solde']['widget'][0]['value']['#attributes']['disabled'] = True;	
+		$form['field_wpsolde_solde']['widget'][0]['value']['#attributes']['readonly'] = True;
+		$form_state->setTemporaryValue('entity_validated', TRUE);
+		$form['actions']['submit']['#validate'][] 	= 'wake_configurator_wakepoints_add_form_validate';
+		$form['actions']['submit']['#submit'][] 	= 'wake_configurator_wakepoints_add_form_submit';
+	}
+
+	if($form_id == 'wakepoints_wakepoint_edit_form'){
+		$entity_id = $form_state->getFormObject()->getEntity()->id();
+		$order_id = 0;
+		$select_order_id = db_query("SELECT field_wpsolde_order_id_target_id FROM wakepoints__field_wpsolde_order_id WHERE entity_id=".$entity_id);
+		foreach ($select_order_id as $key => $res_order_id) {
+			$order_id = $res_order_id->field_wpsolde_order_id_target_id;
+		}
+		if($order_id != 0 && $order_id != ''){
+			$form['field_wpsolde_order_id']['widget'][0]['target_id']['#description'] = "<a href='/admin/commerce/orders/".$order_id."' target='_blank'>View order</a>";
+		}else{
+			$form['field_wpsolde_order_id']['widget'][0]['target_id']['#description'] = "<a href='/admin/commerce/orders' target='_blank'>View order</a>";
+		}
+
+	    $role_has_wp_access = 'president';
+
+		if(!in_array($role_has_wp_access, $user_roles)){
+			$form['field_wpsolde_order_id']['widget'][0]['target_id']['#attributes']['disabled'] = True;
+			$form['field_wpsolde_order']['widget']['#attributes']['disabled'] = True;
+			$form['field_wpsolde_wpaccount_id']['widget']['#attributes']['disabled'] = True;
+			$form['field_wpsolde_enduser']['widget']['#attributes']['disabled'] = True;
+			$form['field_wpsolde_wp']['widget'][0]['value']['#attributes']['disabled'] = True;
+			$form['field_wpsolde_wp']['widget'][0]['value']['#attributes']['readonly'] = True;
+			$form['field_wpsolde_solde']['widget'][0]['value']['#attributes']['disabled'] = True;
+			$form['field_wpsolde_solde']['widget'][0]['value']['#attributes']['readonly'] = True;
+		}
+	}
+}
+
+function wake_configurator_wakepoints_add_form_validate(&$form, FormStateInterface $form_state){
+	$values = $form_state->getValues();
+	if(isset($values['field_wpsolde_wp'][0]['value']) && $values['field_wpsolde_wp'][0]['value'] != ''){
+		$field_wpsolde_solde = 0;
+		$field_wpsolde_solde = (int)$values['field_wpsolde_solde'][0]['value'] + (int)$values['field_wpsolde_wp'][0]['value'];
+		$form_state->setValue('field_wpsolde_solde', array('0'=>array('value'=>$field_wpsolde_solde)));		
+	}
+}
+function wake_configurator_wakepoints_add_form_submit(&$form, FormStateInterface $form_state){
+	$values = $form_state->getValues();
+	$current_language = \Drupal::languageManager()->getCurrentLanguage(\Drupal\Core\Language\LanguageInterface::TYPE_INTERFACE)->getId();
+	if(isset($values['field_wpsolde_solde'][0]['value']) && $values['field_wpsolde_solde'][0]['value'] < 10){
+
+		$mailManager = \Drupal::service('plugin.manager.mail');
+		$module = 'wake_configurator';
+		$key = 'wakepoints_email';
+
+		$wp_account_id = $values['field_wpsolde_wpaccount_id'][0]['target_id'];
+		$user = \Drupal\user\Entity\User::load($wp_account_id);
+
+		if($user && isset($user->get('mail')->value) && $user->get('mail')->value != ''){
+			$to = $user->get('mail')->value;
+
+			$email_content_nid = 0;
+
+			$select_nid_email = db_query("SELECT nid FROM node WHERE type='wakepoints_email' ORDER BY nid ASC LIMIT 1");
+			foreach ($select_nid_email as $key => $res_nid_email) {
+				$email_content_nid = $res_nid_email->nid;
+			}
+
+			if($email_content_nid != 0){
+				$node_title = '';
+				$node_body = '';
+				$select_email_title = db_query("SELECT title FROM node_field_data WHERE langcode='".$current_language."' AND nid=".$email_content_nid);
+				foreach ($select_email_title as $key => $res_email_title) {
+					$node_title = $res_email_title->title;						
+				}
+				$select_email_body = db_query("SELECT body_value FROM node__body WHERE langcode='".$current_language."' AND entity_id=".$email_content_nid);
+				foreach ($select_email_body as $key => $res_email_body) {
+					$node_body 	= $res_email_body->body_value;						
+				}					
+
+				$params['message'] = $node_body;
+				$params['subject'] = $node_title;
+				$langcode = $current_language;
+				$send = true;
+				$result = $mailManager->mail($module, $key, $to, $langcode, $params, NULL, $send);
+				if ($result['result'] !== true) {
+					drupal_set_message(t('There was a problem sending email and it was not sent.'), 'error');
+				}
+				else {
+					drupal_set_message(t('Email regarding less wakepoints has been sent.'));
+				}
+			}	
+		}	
+	}
+	if($current_language == 'fr'){
+		$redirect = new \Symfony\Component\HttpFoundation\RedirectResponse('/fr/wakepoints/debit');
+	}elseif($current_language == 'en'){
+		$redirect = new \Symfony\Component\HttpFoundation\RedirectResponse('/en/wakepoints/debit');
+	}else{
+		$redirect = new \Symfony\Component\HttpFoundation\RedirectResponse('/wakepoints/debit');
+	}
+	$redirect->send();
+	exit();
+}
+
+function wake_configurator_user_search_form_validate(&$form, FormStateInterface $form_state){
+	$current_language = \Drupal::languageManager()->getCurrentLanguage(\Drupal\Core\Language\LanguageInterface::TYPE_INTERFACE)->getId();	
+	$values = $form_state->getValues();
+	if(isset($values['field_search_user'][0]['target_id']) && $values['field_search_user'][0]['target_id'] != ''){
+		$wp_account_id= 0;
+		$selected_user = $values['field_search_user'][0]['target_id'];
+		$select_rider_wp =  db_query("SELECT wpid.field_profil_wp_account_id_target_id FROM profile__field_profil_wp_account_id AS wpid INNER JOIN profile AS p ON p.profile_id = wpid.entity_id WHERE p.type='rider' AND p.uid=".$selected_user);
+		foreach ($select_rider_wp as $key => $res_rider_wp) {
+			$wp_account_id = $res_rider_wp->field_profil_wp_account_id_target_id;
+		}
+		if($wp_account_id != 0 && $wp_account_id != ''){
+			$redirect = new \Symfony\Component\HttpFoundation\RedirectResponse('/'.$current_language.'/admin/content/wakepoints/add/wakepoint?wp_account_id='.$wp_account_id.'&rider_id='.$selected_user);
+            $redirect->send();
+            exit();
+		}else{
+			$form_state->setErrorByName('field_search_user', t('You have forgotten to define the WAKEPOINT ACCOUNT for this rider. Please go to <a href="../user/'.$selected_user.'/edit">RIDER profile</a> and set it up!'));
+		}
+	}
+}
+function wake_configurator_user_search_form_submit(&$form, FormStateInterface $form_state){
+	
+}
+
+function accueil_add_to_cart_form_submit(&$form, FormStateInterface $form_state){
+	$values = $form_state->getValues();
+	$enduser_id = $values['field_commerce_enduser'][0]['target_id'];
+	$variation_id = $values['purchased_entity'][0]['variation'];
+
+	if(isset($_GET['member']) && $_GET['member'] !=''){
+		$customer_account = \Drupal\user\Entity\User::load($_GET['member']);	
+	}
+	if(isset($_GET['user']) && $_GET['user'] !=''){
+		$customer_account = \Drupal\user\Entity\User::load($_GET['user']);
+	}
+    
+
+    $entity_manager = \Drupal::entityManager();
+    $product_variation = '';
+	$product_variation = $entity_manager->getStorage('commerce_product_variation')->load($variation_id);
+
+	if($product_variation != ''){
+
+		$order_type = '';
+		$order_type_data = '';
+
+		$order_item_type = '';
+		$order_item_type_data = '';
+
+		$variation_type = $product_variation->bundle();
+		
+		$select_order_item_type = db_query("SELECT data FROM config WHERE name='commerce_product.commerce_product_variation_type.".$variation_type."' LIMIT 1");
+		
+		foreach ($select_order_item_type as $key => $res_order_item_type) {
+			$order_item_type_data = unserialize($res_order_item_type->data);
+		}
+
+		if(isset($order_item_type_data['orderItemType']) && $order_item_type_data['orderItemType'] != ''){
+			$order_item_type = $order_item_type_data['orderItemType'];
+		}
+
+		if($order_item_type != ''){
+			$select_order_type = db_query("SELECT data FROM config WHERE name='commerce_order.commerce_order_item_type.".$order_item_type."' LIMIT 1");
+			
+			foreach ($select_order_type as $key => $res_order_type) {
+				$order_type_data = unserialize($res_order_type->data);
+				// print "<pre>"; print_r($order_type_data); die();
+			}
+
+			if(isset($order_type_data['orderType']) && $order_type_data['orderType'] != ''){
+				$order_type = $order_type_data['orderType'];
+			}				
+		}
+
+		if($order_item_type != '' && $order_type != ''){
+
+		    $store_id = 1;   
+		    $cart_manager   = \Drupal::service('commerce_cart.cart_manager');
+		    $cart_provider  = \Drupal::service('commerce_cart.cart_provider');
+
+		    $store = $entity_manager->getStorage('commerce_store')->load($store_id); 
+		    $cart = $cart_provider->getCart($order_type, $store, $customer_account);
+
+		      
+		    if (!$cart) {
+		        $cart = $cart_provider->createCart($order_type, $store, $customer_account);
+		    }
+
+            $order_item = $entity_manager->getStorage('commerce_order_item')->create(array(
+              'type' => $order_item_type,
+              'purchased_entity' => (string) $variation_id,
+              'quantity' => 1,
+              'unit_price' => $product_variation->getPrice(),
+              'field_commerce_enduser' => (string) $enduser_id,
+            ));
+
+            $order_item->save();
+            $cart_manager->addOrderItem($cart, $order_item);
+
+			$redirect = new \Symfony\Component\HttpFoundation\RedirectResponse('/admin/commerce/orders/carts');
+			$redirect->send();
+			exit();            		    
+		}
+	}
+}
+
+function add_to_cart_submit_redirect_to_cart_page(&$form, FormStateInterface $form_state){
+	$form_state->setRedirect('commerce_cart.page');
+}
+
+function custom_delete_order_submit(&$form, FormStateInterface $form_state){
+	$order_id = $form['actions']['delete']['#order_id']; 
+	$order =  \Drupal::entityTypeManager()->getStorage('commerce_order')->load($order_id);
+	$order->delete();
+	return true;	
+}
+
+
+/** preview button custom validate function to set value of order total before final submit **/
+function wake_configurator_config_coti_form_validate(&$form, FormStateInterface $form_state){
+	$unit_price_field_values = array();
+
+	$values = $form_state->getValues();
+	
+	if(isset($values['oi_coti_1']) && trim($values['oi_coti_1']) !=''){
+	
+	}else{
+		$values['oi_taxe_1'] = '';
+	}
+
+	$unit_price_field_values = array('oi_coti_1'=>$values['oi_coti_1'], 'oi_taxe_1'=>$values['oi_taxe_1'], 'oi_coti_2'=>$values['oi_coti_2'], 'oi_coti_3'=>$values['oi_coti_3'], 'oi_coti_4'=>$values['oi_coti_4'], 'oi_coti_5'=>$values['oi_coti_5'], 'oi_coti_6'=>$values['oi_coti_6'], 'oi_coti_7'=>$values['oi_coti_7'], 'oi_coti_8'=>$values['oi_coti_8'], 'oi_coti_9'=>$values['oi_coti_9'], 'oi_badge'=>$values['oi_badge'], 'oi_badge2'=>$values['oi_badge2'], 'oi_local'=>$values['oi_local'], 'oi_local2'=>$values['oi_local2'], 'oi_team1'=>$values['oi_team1'], 'oi_team2'=>$values['oi_team2'], 'oi_team3'=>$values['oi_team3'], 'oi_tshirt1'=>$values['oi_tshirt1'], 'oi_tshirt2'=>$values['oi_tshirt2'], 'oi_polo1'=>$values['oi_polo1']);
+
+	$total_order_amount	=	0;
+
+	foreach($unit_price_field_values AS $field_key=>$res_unit_price_field_values){
+		if($res_unit_price_field_values != ''){
+			$get_variations_data = db_query("SELECT price__number FROM commerce_product_variation_field_data WHERE variation_id=".$res_unit_price_field_values." LIMIT 1");
+			foreach ($get_variations_data as $res_variations_data) {
+					$total_order_amount+=	$res_variations_data->price__number;
+			} 
+		}	
+	}
+
+	if(isset($values['order_total'])){
+		$total_order_amount	=	number_format($total_order_amount,2,",",".");
+		$form_state->setValue('order_total', $total_order_amount);
+	}
+}
+
+/** coti config preview button custom submit function **/
+function wake_configurator_config_coti_form_submit(&$form, FormStateInterface $form_state){
+
+}
+
+function wake_configurator_views_query_alter(ViewExecutable $view, QueryPluginBase $query) {
+	$path = \Drupal::request()->getpathInfo();
+	if(isset($path) && ($path == '/wakecatalog/wakepoints' || $path == '/en/wakecatalog/wakepoints' || $path == '/fr/wakecatalog/wakepoints' || $path == '/wakecatalog/wakepoints/' || $path == '/en/wakecatalog/wakepoints/' || $path == '/fr/wakecatalog/wakepoints/')) {
+		if ($view->id() == 'wake_order_membership' && $view->current_display == 'entity_reference_2') {
+
+		    $user_roles = \Drupal::currentUser()->getRoles();
+		    $role_has_all_access = 'accueil';
+
+		    /** if accueil is adding the form then getting current user id from url **/
+			if((in_array($role_has_all_access, $user_roles)) && (isset($_GET['member'])) && $_GET['member'] !=''){
+				$user = \Drupal\user\Entity\User::load($_GET['member']);	
+			}elseif((in_array($role_has_all_access, $user_roles)) && (isset($_GET['user'])) && $_GET['user'] !=''){
+				$user = \Drupal\user\Entity\User::load($_GET['user']);
+			}else{
+		    	$user = \Drupal\user\Entity\User::load(\Drupal::currentUser()->id());
+			}
+
+
+		    $currentUserName = '';
+		    $currentUserId = 0;
+		    if(isset($user->get('name')->value) && $user->get('name')->value != ''){
+		    	$currentUserName	=	$user->get('name')->value;
+		    	$currentUserId		=	$user->id();
+		    }
+// print "<pre>"; print_r($query->where);die('hiii');
+			$query->where[0]['conditions'][0]['field'] = 'users_field_data_commerce_order.uid';
+			$query->where[0]['conditions'][0]['value'] = $currentUserId;
+			$query->where[0]['conditions'][0]['operator'] = '=';
+			$query->where[0]['args'] = array();
+			$query->where[0]['type'] = 'AND';
+			// print "<pre>"; print_r($query->where); die();
+		}
+	}
+	if($view->id() == 'wake_wakepoints_soldes'){
+
+	// print "<pre>"; print_r($view->result); die();
+	}
+}
+
+
+function wake_configurator_views_pre_render(ViewExecutable $view) {
+	if($view->id() == 'wake_wakepoints_soldes' && $view->current_display == 'page_5'){
+        $duplicate_user = array();
+        $new_results = array();
+
+        $results = &$view->result;
+        foreach ($results as $key => $res) {
+            //print "<pre>"; print_r($res->id); die();
+            $content_id =  $res->id;
+            $row_user_id = $res->users_field_data_wakepoints__field_wpsolde_wpaccount_id_uid;
+
+            if(!in_array($row_user_id, $duplicate_user)){
+                $duplicate_user[] = $row_user_id;
+                $new_results[] = $res;
+            }else{
+                foreach ($new_results as $newKey => $newRes) {
+                    $old_content_id = $newRes->id;
+                    $old_user_id = $newRes->users_field_data_wakepoints__field_wpsolde_wpaccount_id_uid;
+
+                    if(($content_id > $old_content_id) && $row_user_id == $old_user_id){
+                        unset($new_results[$newKey]);
+                        $new_results[] = $res;
+                    }
+                }
+                // unset($view->result[$key]);
+            }
+        }
+        $view->result = $new_results;
+	}
+	if($view->id() == 'wake_wakepoints_soldes' && $view->current_display == 'page_1'){
+
+        $duplicate_user = array();
+        $new_results = array();
+
+        $results = &$view->result;
+        foreach ($results as $key => $res) {
+           // print "<pre>"; print_r($res->id); die();
+            $content_id =  $res->id;
+            $row_user_id = $res->users_field_data_wakepoints__field_wpsolde_wpaccount_id_uid;
+
+            if(!in_array($row_user_id, $duplicate_user)){
+                $duplicate_user[] = $row_user_id;
+                $new_results[] = $res;
+            }else{
+                foreach ($new_results as $newKey => $newRes) {
+                    $old_content_id = $newRes->id;
+                    $old_user_id = $newRes->users_field_data_wakepoints__field_wpsolde_wpaccount_id_uid;
+
+                    if(($content_id > $old_content_id) && $row_user_id == $old_user_id){
+                        unset($new_results[$newKey]);
+                        $new_results[] = $res;
+                    }
+                }
+                // unset($view->result[$key]);
+            }
+        }
+        $view->result = $new_results;
+	}
+
+}
+
+
+
+/** coti config(membership) form elements alter to change the dropdown field values according to current user **/
+function wake_configurator_webform_element_alter(array &$element, FormStateInterface $form_state, array $context) {
+    $user_roles = \Drupal::currentUser()->getRoles();
+    $role_has_all_access = 'accueil';
+
+    /** if accueil is adding the form then getting current user id from url **/
+	if((in_array($role_has_all_access, $user_roles)) && (isset($_GET['member'])) && $_GET['member'] !=''){
+		$user = \Drupal\user\Entity\User::load($_GET['member']);	
+	}else{
+    	$user = \Drupal\user\Entity\User::load(\Drupal::currentUser()->id());
+	}
+
+
+    $currentUserName = '';
+    $currentUserId = 0;
+    if($user && isset($user->get('name')->value) && $user->get('name')->value != ''){
+    	$currentUserName	=	$user->get('name')->value;
+    	$currentUserId		=	$user->id();
+    }
+
+	$new_user = 0;
+	if(isset($user->field_user_usernew->value) && $user->field_user_usernew->value !='') {
+		$new_user = $user->field_user_usernew->value;
+	}    
+
+	/** Memberships first tab fields **/
+    if($element['#webform_id'] == "config_coti--cotisation"){
+
+    	/** Changing drop down values for "Nom" **/
+    	if(isset($element['flexbox']['coti_adulte']['oi_enduser_1']) && isset($element['flexbox']['coti_adulte']['oi_enduser_1']['#selection_settings']['view']['arguments'])){
+			$element['flexbox']['coti_adulte']['oi_enduser_1']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+			$element['flexbox']['coti_adulte']['oi_enduser_1']['#default_value'] = $currentUserId;
+		}
+
+		/** Changing drop down values for "TAXE" **/
+		if(isset($element['flexbox']['coti_adulte']['oi_taxe_1']) && isset($element['flexbox']['coti_adulte']['oi_taxe_1']['#selection_settings']['view']['arguments'])){
+
+			$current_date	=	date('d-m-Y');
+			$validate_date		=	'05-05-'.date('Y');	
+			if(strtotime($current_date) < strtotime($validate_date)){ 
+				$element['flexbox']['coti_adulte']['oi_taxe_1']['#selection_settings']['view']['arguments'][0] = '';
+			}
+			if($new_user == 1){
+				$element['flexbox']['coti_adulte']['oi_taxe_1']['#selection_settings']['view']['arguments'][0] = 'TAX_1';
+			}
+		}
+
+		/** Changing drop down values for "Nom Conjoint" **/
+    	if(isset($element['flexbox']['coti_adulte']['oi_enduser_2']) && isset($element['flexbox']['coti_adulte']['oi_enduser_2']['#selection_settings']['view']['arguments'])){
+			$element['flexbox']['coti_adulte']['oi_enduser_2']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}
+
+
+		/** Changing drop down values for "Enfant 1" **/
+    	if(isset($element['flexbox_02']['coti_jeune']['flexbox_03']['oi_enduser_3']) && isset($element['flexbox_02']['coti_jeune']['flexbox_03']['oi_enduser_3']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_02']['coti_jeune']['flexbox_03']['oi_enduser_3']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}				
+
+
+		/** Changing drop down values for "Enfant 2" **/
+    	if(isset($element['flexbox_02']['coti_jeune']['flexbox_03']['oi_enduser_4']) && isset($element['flexbox_02']['coti_jeune']['flexbox_03']['oi_enduser_4']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_02']['coti_jeune']['flexbox_03']['oi_enduser_4']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}
+
+		/** Changing drop down values for "Enfant 3" **/
+    	if(isset($element['flexbox_02']['coti_jeune']['flexbox_04']['oi_enduser_5']) && isset($element['flexbox_02']['coti_jeune']['flexbox_04']['oi_enduser_5']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_02']['coti_jeune']['flexbox_04']['oi_enduser_5']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}
+
+		/** Changing drop down values for "Enfant 4" **/
+    	if(isset($element['flexbox_02']['coti_jeune']['flexbox_04']['oi_enduser_6']) && isset($element['flexbox_02']['coti_jeune']['flexbox_04']['oi_enduser_6']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_02']['coti_jeune']['flexbox_04']['oi_enduser_6']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}	
+
+
+		/** Changing drop down values for "Jeune 1" **/
+    	if(isset($element['flexbox_05']['flexbox_11']['oi_enduser_7']) && isset($element['flexbox_05']['flexbox_11']['oi_enduser_7']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_05']['flexbox_11']['oi_enduser_7']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}	
+
+		/** Changing drop down values for "Jeune 2" **/
+    	if(isset($element['flexbox_05']['flexbox_11']['oi_enduser_8']) && isset($element['flexbox_05']['flexbox_11']['oi_enduser_8']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_05']['flexbox_11']['oi_enduser_8']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}	
+
+		/** Changing drop down values for "Jeune 3" **/
+    	if(isset($element['flexbox_05']['flexbox_11']['oi_enduser_9']) && isset($element['flexbox_05']['flexbox_11']['oi_enduser_9']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_05']['flexbox_11']['oi_enduser_9']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}	
+
+
+		/** Changing drop down values for "Nom (oi_enduser_10)" **/
+    	if(isset($element['others_wake_products']['flexbox_06']['oi_enduser_10']) && isset($element['others_wake_products']['flexbox_06']['oi_enduser_10']['#selection_settings']['view']['arguments'])){
+			$element['others_wake_products']['flexbox_06']['oi_enduser_10']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}								   
+    }
+    /** END Memberships first tab fields **/
+
+	$current_language = \Drupal::languageManager()->getCurrentLanguage(\Drupal\Core\Language\LanguageInterface::TYPE_INTERFACE)->getId();
+
+    /** "Others Wake Products" 2nd tab fields **/
+	if($element['#webform_id'] == "config_coti--others_wake_products"){
+
+	  	if(isset($element['flexbox_06']['oi_enduser_10']) && isset($element['flexbox_06']['oi_enduser_10']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_06']['oi_enduser_10']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		} 
+
+	  	if(isset($element['flexbox_06']['oi_enduser_11']) && isset($element['flexbox_06']['oi_enduser_11']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_06']['oi_enduser_11']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}
+
+	  	if(isset($element['flexbox_06']['oi_enduser_12']) && isset($element['flexbox_06']['oi_enduser_12']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_06']['oi_enduser_12']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}
+
+	  	if(isset($element['flexbox_06']['oi_enduser_13']) && isset($element['flexbox_06']['oi_enduser_13']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_06']['oi_enduser_13']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}
+
+	  	if(isset($element['flexbox_07']['oi_enduser_14']) && isset($element['flexbox_07']['oi_enduser_14']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_07']['oi_enduser_14']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}
+
+	  	if(isset($element['flexbox_07']['oi_enduser_15']) && isset($element['flexbox_07']['oi_enduser_15']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_07']['oi_enduser_15']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}
+
+	  	if(isset($element['flexbox_08']['oi_enduser_16']) && isset($element['flexbox_08']['oi_enduser_16']['#selection_settings']['view']['arguments'])){
+			$element['flexbox_08']['oi_enduser_16']['#selection_settings']['view']['arguments'][0] = $currentUserName;
+		}														   
+	}    
+}
+
+/** if order state is completed then changing the customer 'new user field' value to null **/
+function wake_configurator_commerce_order_update(Drupal\Core\Entity\EntityInterface $entity) {
+	$current_language = \Drupal::languageManager()->getCurrentLanguage(\Drupal\Core\Language\LanguageInterface::TYPE_INTERFACE)->getId();
+
+	$customer_uid 			=	$entity->getCustomerId(); 
+	$order_number			=	$entity->getOrderNumber();
+	$order_id 				=	$entity->id();
+	$current_order_state	=	$entity->getState()->value; 
+	$order_type 			=	$entity->bundle();
+	$original_state			=	'';
+
+	if(isset($entity->original)){
+		$original_state =  $entity->original->getState()->value;
+	}
+
+	if($current_order_state == 'draft' && $original_state == 'draft'){
+		$existing_entity_for_order_id = 0;
+		$check_order = db_query("SELECT entity_id FROM order_language__field_order_id WHERE field_order_id_value=".$order_id." ORDER BY entity_id DESC LIMIT 1");
+		foreach ($check_order as $key => $res_check_order) {
+			$existing_entity_for_order_id = $res_check_order->entity_id;
+		}
+		if($existing_entity_for_order_id == 0){
+			$order_language_data = array(
+			  'type' => 'order_language', 
+			  'field_order_id' => $order_id, 
+			  'field_order_language' => $current_language
+			);
+			$order_language =  \Drupal::entityTypeManager()->getStorage('order_language')->create($order_language_data);
+			$order_language->save();
+		}
+	}
+
+	if($current_order_state == 'completed' && $original_state == 'validation'){
+		$mailManager = \Drupal::service('plugin.manager.mail');
+		$module = 'wake_configurator';
+
+		$load_customer = \Drupal\user\Entity\User::load($customer_uid);
+
+		$email_content_nid 	= 0;
+		$to 				= '';
+
+		if($load_customer && isset($load_customer->get('mail')->value) && $load_customer->get('mail')->value != ''){
+			$to = $load_customer->get('mail')->value;
+		}
+
+		if($order_type == 'configurator_camp'){
+			$email_key = 'camp_email';	
+			$select_nid_email = db_query("SELECT nid FROM node WHERE type='camp_email' ORDER BY nid ASC LIMIT 1");
+			foreach ($select_nid_email as $key => $res_nid_email) {
+				$email_content_nid = $res_nid_email->nid;
+			}
+		}elseif($order_type == 'configurator'){
+			$email_key = 'membership_email';
+			$select_nid_email = db_query("SELECT nid FROM node WHERE type='membership_email' ORDER BY nid ASC LIMIT 1");
+			foreach ($select_nid_email as $key => $res_nid_email) {
+				$email_content_nid = $res_nid_email->nid;
+			}			
+		}else{
+			$email_key = 'product_email';
+			$select_nid_email = db_query("SELECT nid FROM node WHERE type='product_email' ORDER BY nid ASC LIMIT 1");
+			foreach ($select_nid_email as $key => $res_nid_email) {
+				$email_content_nid = $res_nid_email->nid;
+			}
+		}
+
+		if($email_content_nid != 0 && $to != ''){
+			$node_title = '';
+			$node_body = '';
+			$order_language = 'en';
+
+			$get_order_language_entity = 0;
+			$check_order = db_query("SELECT olol.entity_id, olol.field_order_language_value FROM order_language__field_order_id AS oloi LEFT JOIN order_language__field_order_language AS olol ON olol.entity_id = oloi.entity_id WHERE oloi.field_order_id_value=".$order_id." ORDER BY olol.entity_id DESC LIMIT 1");
+			foreach ($check_order as $key => $res_check_order) {
+				$get_order_language_entity 	= $res_check_order->entity_id;
+				$order_language 				= $res_check_order->field_order_language_value;
+			}
+			
+			$select_email_title = db_query("SELECT title FROM node_field_data WHERE langcode='".$order_language."' AND nid=".$email_content_nid);
+			foreach ($select_email_title as $key => $res_email_title) {
+				$node_title = $res_email_title->title;						
+			}
+			$select_email_body = db_query("SELECT body_value FROM node__body WHERE langcode='".$order_language."' AND entity_id=".$email_content_nid);
+			foreach ($select_email_body as $key => $res_email_body) {
+				$node_body 	= $res_email_body->body_value;						
+			}					
+
+			$params['message'] = $node_body;
+			$params['subject'] = $node_title;
+			$langcode = $order_language;
+			$send = true;
+			$result = $mailManager->mail($module, $email_key, $to, $langcode, $params, NULL, $send);
+			if ($result['result'] !== true) {
+				drupal_set_message(t('There was a problem sending email and it was not sent.'), 'error');
+			}
+			else {
+				if($get_order_language_entity != 0){
+					$load_order_language_entity =  \Drupal::entityTypeManager()->getStorage('order_language')->load($get_order_language_entity);
+					$load_order_language_entity->delete();
+				}				
+				$message_key = str_replace('_', ' ', $email_key);
+				$message_key = ucfirst($message_key);
+				drupal_set_message(t($message_key.' has been sent.'));
+			}
+		}		
+	}
+
+
+	if($order_type == 'configurator'){
+		if(isset($entity->original)){
+			$original_state =  $entity->original->getState()->value;
+		}
+
+		$loading_customer = \Drupal\user\Entity\User::load($customer_uid);
+		
+		$new_customer = 0;
+		if(isset($loading_customer->field_user_usernew->value) && $loading_customer->field_user_usernew->value !='') {
+			$new_customer = $loading_customer->field_user_usernew->value;
+		}
+
+		if($new_customer != 0 && $current_order_state == 'completed' && $original_state != 'completed'){
+			$loading_customer->set('field_user_usernew', '');
+			$loading_customer->save();
+		}
+	}
+	if($order_type == 'configurator' || $order_type == 'wake'){
+		if($current_order_state == 'completed' && $original_state != 'completed'){	
+			$select_wp_items = db_query("SELECT coi.order_item_id, coi.order_id, fce.field_commerce_enduser_target_id, fcw.field_commerce_wp_value FROM commerce_order_item__field_commerce_enduser AS fce INNER JOIN commerce_order_item AS coi ON coi.order_item_id = fce.entity_id INNER JOIN commerce_product_variation__field_commerce_wp AS fcw ON fcw.entity_id = coi.purchased_entity WHERE coi.order_id=".$order_id);
+			foreach($select_wp_items AS $res_wp_items){
+				$wakepoints_balance = 0;
+				$select_wakepoints_balance = db_query("SELECT ws.field_wpsolde_solde_value FROM wakepoints__field_wpsolde_wpaccount_id AS wi INNER JOIN wakepoints__field_wpsolde_solde AS ws ON ws.entity_id = wi.entity_id WHERE wi.bundle='wakepoint' AND wi.field_wpsolde_wpaccount_id_target_id=".$customer_uid." ORDER BY ws.entity_id DESC LIMIT 1");
+
+				foreach ($select_wakepoints_balance as $key => $res_wakepoints_balance) {
+					$wakepoints_balance = $res_wakepoints_balance->field_wpsolde_solde_value;
+				}
+
+				$wakepoints = $res_wp_items->field_commerce_wp_value + $wakepoints_balance;
+
+				$node = entity_create('wakepoints', array(
+				         'type' => 'wakepoint',
+				         'field_wpsolde_enduser'=> $res_wp_items->field_commerce_enduser_target_id,
+				         'field_wpsolde_wpaccount_id'=> $customer_uid,
+				         'field_wpsolde_reason'=> 4,
+				         'field_wpsolde_wp'=> $res_wp_items->field_commerce_wp_value,
+				         'field_wpsolde_solde'=> $wakepoints,
+				         'field_wpsolde_order'=> $res_wp_items->order_item_id,
+				         'field_wpsolde_order_id'=> $res_wp_items->order_id
+				        )
+				);
+				$node->save();
+			}			
+		}		
+	}
+}
+
+function wake_configurator_mail($key, &$message, $params) {
+	switch ($key) {
+		case 'wakepoints_email':
+		$message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+		$message['from'] = \Drupal::config('system.site')->get('mail');
+		$message['subject'] = $params['subject'];
+		$message['body'][] = t($params['message']);
+		break;
+		case 'camp_email':
+		$message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+		$message['from'] = \Drupal::config('system.site')->get('mail');
+		$message['subject'] = $params['subject'];
+		$message['body'][] = t($params['message']);
+		break;
+		case 'membership_email':
+		$message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+		$message['from'] = \Drupal::config('system.site')->get('mail');
+		$message['subject'] = $params['subject'];
+		$message['body'][] = t($params['message']);
+		break;
+		case 'product_email':
+		$message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+		$message['from'] = \Drupal::config('system.site')->get('mail');
+		$message['subject'] = $params['subject'];
+		$message['body'][] = t($params['message']);
+		break;		
+	}
+}

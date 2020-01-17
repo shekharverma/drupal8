@@ -1,0 +1,8 @@
+wakeconfig-lib:
+  css:
+    theme:
+      css/wake_configurator.css: {}
+wakeconfig-lib-admin:
+  css:
+    theme:
+      css/wake_configurator_admin.css: {}

@@ -1,0 +1,7 @@
+wake_configurator_camp.content:
+  path: '/wake_configurator_camp/clear_camp_orders'
+  defaults:
+    _controller: 'Drupal\wake_configurator_camp\Controller\ClearCampOrdersController::content'
+    _title: 'Clear camp orders'
+  requirements:
+    _permission: 'access content'
